@@ -27,7 +27,7 @@ Inspirée du principe des planificateurs de repas comme Pimzi, mais c'est une ap
 
 - Les **prix sont des moyennes estimées** (supermarché, France 2026), pas les prix réels d'un magasin. Le choix d'enseigne applique un écart moyen national, pas les prix du magasin près de chez toi.
   Avoir les prix exacts de ton magasin demanderait une vraie source de prix (API ou relevés).
-- 30 recettes pour l'instant : avec beaucoup de filtres cumulés, le choix devient étroit.
+- 64 recettes : avec beaucoup de filtres cumulés (ex. végétarien + sans gluten, ou air fryer seul), il en reste une dizaine.
 
 ## Lancer
 

@@ -24,9 +24,20 @@
     epinards: ["#2F6B2F", "leaf"], brocoli: ["#3E7D32", "leaf"], salade: ["#7DB346", "leaf"], persil: ["#3F8F3A", "leaf"],
     fromage_rape: ["#F2D57E", "shred"], parmesan: ["#EEDC9A", "shred"],
     oeufs: ["#FFFDF6", "egg"],
+    patate_douce: ["#E8823A", "chunk"], chou_fleur: ["#F1EAD2", "chunk"], aubergine: ["#5B3A6B", "slice"], concombre: ["#86B85E", "slice"],
+    haricots_verts: ["#5E9A3A", "strip"], legumes_wok: ["#7DAA4A", "strip"], crevettes: ["#F29A7A", "chunk"], dinde: ["#E9CC9F", "chunk"],
+    merguez: ["#8E3A26", "slice"], sardines: ["#8C95A2", "chunk"], quinoa: ["#E6D6A8", "grains"], olives: ["#2E2A26", "dot"],
+    yaourt: ["#FBF8F0", "dot"], pate_feuilletee: ["#E2B66A", "smooth"], ravioli: ["#EED39A", "dot"], pain_burger: ["#D69A4E", "smooth"],
   };
   // Fonds de soupe et de sauce qui ne viennent pas d'un seul ingrédient
-  const BASE_TINT = { soupe_poireaux: "#C9D99A", dahl: "#D9A441", curry_pc: "#E2B04A", chili: "#9C3A26", shakshuka: "#C8402E", basquaise: "#C9542F" };
+  const BASE_TINT = {
+    soupe_poireaux: "#C9D99A", dahl: "#D9A441", curry_pc: "#E2B04A", chili: "#9C3A26", shakshuka: "#C8402E", basquaise: "#C9542F",
+    omelette: "#F2CF6A", ratatouille: "#B8452E", soupe_lentilles: "#D98C3A", minestrone: "#C9643A", veloute_patate_douce: "#E98A3A",
+    chili_sin_carne: "#9C3A26", salade_nicoise: "#9CC66A", tartines_sardines: "#C98E4A", poulet_coco: "#EBD9A8", bolognaise: "#A8402B",
+    one_pot: "#C8402E", dinde_croustillante: "#C9D99A", nuggets: "#C9D99A", saumon_four: "#E9E3D2",
+    gratin_dauphinois: "#E9C77A", gratin_chou_fleur: "#E9C77A", oeufs_cocotte: "#3E7A35", chou_fleur_curry: "#E2B04A",
+    patate_douce_rotie: "#EADBB8", aubergines_roties: "#D9C9A0",
+  };
   const BASE_KINDS = new Set(["strands", "grains", "smooth"]);
 
   function hash(str) {

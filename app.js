@@ -29,8 +29,8 @@
   const DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
   const DAY_PLAN = { 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] };
   // Ingrédient « principal » d'un plat, pour éviter deux fois la même chose dans la semaine.
-  const MAINS = ["poulet", "boeuf", "saucisses", "lardons", "jambon", "chorizo", "saumon", "cabillaud", "thon", "tofu", "pois_chiches", "lentilles", "haricots", "oeufs", "gnocchis"];
-  const STARCHES = ["pates", "riz", "riz_rond", "pdt", "semoule", "tortillas", "pate_pizza", "pate_brisee", "nouilles"];
+  const MAINS = ["poulet", "dinde", "boeuf", "merguez", "saucisses", "lardons", "jambon", "chorizo", "saumon", "cabillaud", "crevettes", "thon", "sardines", "tofu", "pois_chiches", "lentilles", "haricots", "oeufs", "gnocchis", "ravioli"];
+  const STARCHES = ["pates", "riz", "riz_rond", "pdt", "patate_douce", "semoule", "quinoa", "tortillas", "pate_pizza", "pate_brisee", "pate_feuilletee", "nouilles", "pain_burger"];
   const BASICS = new Set(["huile", "curry", "paprika", "bouillon", "sauce_soja"]);
 
   /* Indice de prix moyen par enseigne, base 1 = E.Leclerc.
@@ -123,7 +123,8 @@
   }
   const ovenToAF = (r) => (r.need || []).includes("four") && !has("four") && has("airfryer") && !!r.af;
   function devicesLabel(r) {
-    return (r.need || []).map((n) => (n === "four" && ovenToAF(r) ? "Air fryer" : EQUIPMENT.find((e) => e.id === n).short)).join(" + ");
+    if (!(r.need || []).length) return "Sans cuisson";
+    return r.need.map((n) => (n === "four" && ovenToAF(r) ? "Air fryer" : EQUIPMENT.find((e) => e.id === n).short)).join(" + ");
   }
 
   function eligible(r, p = state.prefs) {
