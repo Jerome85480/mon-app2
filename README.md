@@ -19,6 +19,8 @@ Inspirée du principe des planificateurs de repas comme Pimzi, mais c'est une ap
   (palmarès UFC-Que Choisir 2026, étude 2025), avec une comparaison du panier et un lien de recherche sur lidl.fr ou e.leclerc.
 - **Équipement** (plaques induction / vitro / gaz, four, air fryer) : le menu ne propose que ce que tu peux cuisiner.
   Sans four mais avec un air fryer, les gratins, pizzas, quiches et rôtis passent au air fryer (températures et temps indiqués).
+- Design « table de cuisine » : assiettes illustrées générées à partir des ingrédients, bloc « Ce soir » sur nappe vichy,
+  budget en ticket de caisse, prix en étiquettes de rayon.
 - Mode sombre, utilisable au pouce sur mobile, installable comme appli (manifest). Tout est stocké sur l'appareil (localStorage).
 
 ## Limites à connaître
@@ -42,4 +44,5 @@ Se déploie tel quel sur Vercel, Netlify ou GitHub Pages (site statique).
 - `index.html` : structure des trois écrans (Menu, Courses, Mes goûts)
 - `styles.css` : design (thèmes clair et sombre)
 - `data.js` : ingrédients (conditionnement, prix, rayon, allergènes) et recettes
+- `plate.js` : dessin des assiettes (vue de dessus) à partir des ingrédients
 - `app.js` : génération du menu, budget, liste de courses, interactions

@@ -298,6 +298,24 @@
     d.setDate(d.getDate() + idx);
     return `${DAY_NAMES[idx]} ${d.getDate()}`;
   }
+  function dayParts(i) {
+    const plan = DAY_PLAN[state.prefs.dinners] || DAY_PLAN[5];
+    const idx = plan[i] ?? i;
+    const d = weekStart();
+    d.setDate(d.getDate() + idx);
+    return { short: DAY_NAMES[idx].slice(0, 3), num: d.getDate(), offset: idx };
+  }
+  /* Le dîner de ce soir s'il est prévu, sinon le prochain. */
+  function nextDinner() {
+    if (!state.menu.length) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - weekStart()) / 864e5);
+    for (let i = 0; i < state.menu.length; i++) {
+      const off = dayParts(i).offset;
+      if (off >= diff) return { i, tonight: off === diff };
+    }
+    return { i: 0, tonight: false };
+  }
 
   /* ---------- Rendu : menu ---------- */
   const icons = {
@@ -327,29 +345,51 @@
       list.innerHTML = state.menu.map((m, i) => {
         const r = byId(m.id);
         const use = pantryUse(r);
+        const dp = dayParts(i);
         return `<li class="dinner${m.locked ? " locked" : ""}${i === freshIndex ? " fresh" : ""}" data-i="${i}">
-          <button class="plate" type="button" style="--h:${r.hue}" data-open="${i}" aria-label="Voir la recette ${esc(r.name)}">${r.emoji}</button>
+          ${m.locked ? '<span class="sticker">Gardé</span>' : ""}
+          <div class="date" aria-label="${dayLabel(i)}"><span>${dp.short}</span><b>${dp.num}</b></div>
           <div class="dinner-main">
-            <span class="dinner-day">${dayLabel(i)}</span>
             <button class="dinner-name" type="button" data-open="${i}">${esc(r.name)}</button>
             <div class="meta">
               <span>${icons.clock}${r.time} min</span>
               <span>${icons.hat}${levelLabel(r.level)}</span>
               <span>${icons.pan}${devicesLabel(r)}</span>
-              ${use.length ? `<span class="pill" title="Déjà dans ton placard">Placard : ${esc(use.slice(0, 2).join(", "))}</span>` : ""}
             </div>
-            <div class="dinner-foot">
+            ${use.length ? `<div><span class="pill" title="Déjà dans ton placard">Placard : ${esc(use.slice(0, 2).join(", "))}</span></div>` : ""}
+</div>
+          <button class="plate-btn" type="button" data-open="${i}" aria-label="Voir la recette ${esc(r.name)}">${window.plateSVG(r)}</button>
+          <div class="dinner-foot">
               <span class="tag">${fmtE(portionCost(r))} <small>la part</small></span>
               <div class="dinner-btns">
                 <button class="icon-btn" type="button" data-swap="${i}" aria-label="Changer ce dîner" title="Changer ce dîner">${icons.swap}</button>
                 <button class="icon-btn" type="button" data-lock="${i}" aria-pressed="${m.locked}" aria-label="${m.locked ? "Libérer ce dîner" : "Garder ce dîner"}" title="${m.locked ? "Gardé pour le prochain menu" : "Garder ce dîner"}">${m.locked ? icons.lock : icons.unlock}</button>
               </div>
-            </div>
           </div>
         </li>`;
       }).join("");
     }
+    renderTonight();
     renderBudget();
+  }
+
+  function renderTonight() {
+    const box = $("#tonight");
+    const nd = nextDinner();
+    box.className = "tonight gingham";
+    if (!nd) { box.innerHTML = ""; return; }
+    const r = byId(state.menu[nd.i].id);
+    box.innerHTML = `
+      <div class="tonight-text">
+        <p class="eyebrow">${nd.tonight ? "Ce soir" : "Prochain dîner"} · ${dayLabel(nd.i)}</p>
+        <h2>${esc(r.name)}</h2>
+        <div class="meta"><span>${icons.clock}${r.time} min</span><span>${icons.pan}${devicesLabel(r)}</span><span>${fmtE(portionCost(r) * state.prefs.people)} pour ${state.prefs.people}</span></div>
+        <div class="tonight-actions">
+          <button class="btn btn-yellow" type="button" data-open="${nd.i}">Voir la recette</button>
+          <button class="btn btn-outline-light" type="button" data-swap="${nd.i}">${icons.swap}Changer</button>
+        </div>
+      </div>
+      <div class="tonight-plate" aria-hidden="true">${window.plateSVG(r)}</div>`;
   }
 
   function renderBudget() {
@@ -357,9 +397,15 @@
     const total = shoppingTotal(state.menu);
     const ratio = p.budget ? total / p.budget : 0;
     const over = total > p.budget + 0.005;
-    $("#budget-label").textContent = "Courses chez " + storeOf().name;
-    $("#total-value").textContent = fmtE(total);
-    $("#budget-value").textContent = fmtE(p.budget);
+    const left = p.budget - total;
+    $("#receipt-store").textContent = storeOf().name;
+    $("#store-pill").textContent = storeOf().name;
+    $("#store-pill").setAttribute("aria-label", `Magasin : ${storeOf().name}. Changer`);
+    $("#receipt-lines").innerHTML = `
+      <div class="row"><dt>${state.menu.length} dîners × ${p.people} pers.</dt><dd>${state.menu.length * p.people} assiettes</dd></div>
+      <div class="row"><dt>Courses estimées</dt><dd>${fmtE(total)}</dd></div>
+      <div class="row"><dt>Budget</dt><dd>${fmtE(p.budget)}</dd></div>
+      <div class="row total${over ? " over" : ""}"><dt>${over ? "Dépassement" : "Reste"}</dt><dd>${fmtE(Math.abs(left))}</dd></div>`;
     $("#gauge-fill").style.width = Math.min(100, ratio * 100).toFixed(1) + "%";
     $("#gauge").classList.toggle("over", over);
     $("#gauge").setAttribute("aria-valuenow", Math.round(ratio * 100));
@@ -368,7 +414,7 @@
     const perPortion = portions ? total / portions : 0;
     $("#budget-note").textContent = !state.menu.length ? "" : over
       ? `${fmtE(total - p.budget)} au-dessus du budget. Change un dîner cher ou ajoute ce que tu as déjà au placard.`
-      : `Il te reste ${fmtE(p.budget - total)}. Soit ${fmtE(perPortion)} par assiette.`;
+      : `Dans le budget, soit ${fmtE(perPortion)} par assiette.`;
   }
 
   /* ---------- Rendu : courses ---------- */
@@ -379,15 +425,29 @@
       .map(([id, n]) => ({ id, ...buyLine(id, n.qty), need: n.qty, recipes: n.recipes }));
   }
 
+  const AISLE_LOOK = {
+    legumes: [110, '<path d="M5 19C5 10 11 5 19 5c0 8-5 14-14 14Z M5 19l8-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'],
+    boucherie: [8, '<path d="M3 12c3-4 7-5 11-4l6-3v14l-6-3c-4 1-8 0-11-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="11" r="1" fill="currentColor"/>'],
+    frais: [205, '<path d="M8 3h8l1.5 4v14h-11V7Z M6.5 7h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>'],
+    epicerie: [38, '<path d="M7 3h10v3H7Z M6 6h12v15H6Z M6 11h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>'],
+    surgeles: [195, '<path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'],
+    boulangerie: [28, '<path d="M3 14c0-5 4-8 9-8s9 3 9 8v4H3Z M9 9l-1.5 5M13 8.5l-1 5.5M17 9.5l-1 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'],
+  };
+
   function renderList() {
     const lines = shoppingLines();
     const total = lines.reduce((s, l) => s + l.cost, 0);
     const done = lines.filter((l) => state.checked[l.id]).length;
     $("#list-total").textContent = fmtE(total);
     $("#list-sub").textContent = lines.length
-      ? `${lines.length} articles · ${done} dans le caddie`
+      ? `${lines.length} articles chez ${storeOf().name} · ${state.menu.length} dîners`
       : "Rien à acheter pour l'instant.";
-    $("#list-progress").style.width = lines.length ? (done / lines.length) * 100 + "%" : "0";
+    $("#ring").style.strokeDashoffset = (119.4 * (1 - (lines.length ? done / lines.length : 0))).toFixed(1);
+    $("#ring-label").textContent = `${done}/${lines.length}`;
+    const complete = lines.length > 0 && done === lines.length;
+    const banner = $("#done-banner");
+    if (complete && banner.hidden) { banner.hidden = false; banner.replaceWith(banner.cloneNode(true)); } // relance les confettis
+    if (!complete) banner.hidden = true;
 
     const badge = $("#tab-badge");
     const left = lines.length - done;
@@ -401,7 +461,7 @@
       if (!items.length) return "";
       const sub = items.reduce((s, l) => s + l.cost, 0);
       return `<section class="aisle">
-        <div class="aisle-head"><h2>${a.name}</h2><span>${fmtE(sub)}</span></div>
+        <div class="aisle-head"><span class="aisle-icon" style="--h:${AISLE_LOOK[a.id][0]}"><svg viewBox="0 0 24 24" aria-hidden="true">${AISLE_LOOK[a.id][1]}</svg></span><h2>${a.name}</h2><span>${fmtE(sub)}</span></div>
         <ul class="items">${items.map(itemHTML).join("")}</ul>
       </section>`;
     }).join("");
@@ -467,7 +527,7 @@
         <span class="item-name">${esc(g.name)}</span>
         <span class="item-sub">${detail}</span>
       </label>
-      <div class="item-price"><b>${fmtE(l.cost)}</b>${unitPrice}${state.prefs.pantry.includes(l.id) || !window.PANTRY.includes(l.id) ? "" : `<button class="btn-link" type="button" data-have="${l.id}" style="min-height:24px;font-size:.75rem">Je l'ai déjà</button>`}</div>
+      <div class="item-price"><b>${fmtE(l.cost)}</b>${unitPrice}${state.prefs.pantry.includes(l.id) || !window.PANTRY.includes(l.id) ? "" : `<button class="btn-link" type="button" data-have="${l.id}">Je l'ai déjà</button>`}</div>
     </li>`;
   }
 
@@ -527,19 +587,18 @@
     const { i, people, done } = sheetCtx;
     const r = byId(state.menu[i].id);
     $("#sheet-body").innerHTML = `
-      <div class="sheet-hero">
-        <div class="plate" style="--h:${r.hue}" aria-hidden="true">${r.emoji}</div>
-        <div>
-          <span class="dinner-day">${dayLabel(i)}</span>
-          <h2 id="sheet-title">${esc(r.name)}</h2>
-          <div class="meta"><span>${icons.clock}${r.time} min</span><span>${icons.hat}${levelLabel(r.level)}</span><span>${icons.pan}${devicesLabel(r)}</span><span class="tag">${fmtE(portionCost(r))} <small>la part</small></span></div>
-        </div>
+      <div class="sheet-hero gingham">
+        <div class="sheet-plate" aria-hidden="true">${window.plateSVG(r)}</div>
+        <p class="eyebrow">${dayLabel(i)}</p>
+        <h2 id="sheet-title">${esc(r.name)}</h2>
+        <div class="meta"><span>${icons.clock}${r.time} min</span><span>${icons.hat}${levelLabel(r.level)}</span><span>${icons.pan}${devicesLabel(r)}</span></div>
+        <span class="tag">${fmtE(portionCost(r))} <small>la part</small></span>
       </div>
       <div class="sheet-body">
-        <section style="display:grid;gap:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <section class="sheet-section">
+          <div class="sheet-section-head">
             <h3>Ingrédients</h3>
-            <div class="stepper" style="box-shadow:none">
+            <div class="stepper">
               <button type="button" class="step" data-sheet-people="-1" aria-label="Une part de moins">−</button>
               <output aria-live="polite">${people}</output>
               <button type="button" class="step" data-sheet-people="1" aria-label="Une part de plus">+</button>
@@ -548,7 +607,7 @@
           <ul class="ing-list">${Object.entries(r.ing).map(([id, q]) => `<li><span>${esc(ING[id].name)}${inPantry(id) ? '<span class="have">placard</span>' : ""}</span><span class="qty">${fmtQty(id, q * people)}</span></li>`).join("")}</ul>
           <p class="sheet-note">Plus sel, poivre et un filet d'huile.</p>
         </section>
-        <section style="display:grid;gap:10px">
+        <section class="sheet-section">
           <h3>Préparation <span class="muted" style="font-weight:400;font-size:.85rem">(touche une étape quand c'est fait)</span></h3>
           ${afBox(r)}
           <ol class="steps">${r.steps.map((s, k) => {
@@ -607,6 +666,7 @@
       $("#screen-" + t).hidden = t !== tab;
       const b = document.querySelector(`.tab[data-tab="${t}"]`);
       if (t === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+      if (t === tab) $("#tabs-in").style.setProperty("--i", TABS.indexOf(t));
     });
     if (tab === "courses") renderList();
     if (tab === "profil") renderPrefs();
@@ -762,7 +822,7 @@
 
   /* ---------- Démarrage ---------- */
   const ws = weekStart();
-  $("#week-label").textContent = "Semaine du " + ws.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  $("#week-label").textContent = "Sem. du " + ws.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   if (!state.menu.length || state.menu.length !== state.prefs.dinners) generate(true);
   renderList();
   show(location.hash.slice(1) || "menu");
