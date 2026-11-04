@@ -1,0 +1,11 @@
+{
+  "name": "Popote",
+  "short_name": "Popote",
+  "description": "Tes dîners de la semaine et la liste de courses qui va avec, dans ton budget.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F1F4EE",
+  "theme_color": "#5A2D6E",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

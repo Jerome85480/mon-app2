@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Popote</title>
+<meta name="description" content="Tes dîners de la semaine et la liste de courses qui va avec, dans ton budget.">
+<meta name="theme-color" content="#5A2D6E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- BODY:START -->
+<div class="app">
+  <header class="top">
+    <div class="top-in">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15h24a12 12 0 0 1-24 0Z" fill="currentColor"/><path d="M11 5c0 2-2 2-2 4M16 4c0 2-2 2-2 4M21 5c0 2-2 2-2 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+        <span>Popote</span>
+      </div>
+      <p class="week" id="week-label"></p>
+    </div>
+  </header>
+
+  <main class="screens">
+    <!-- MENU -->
+    <section class="screen" id="screen-menu" aria-labelledby="menu-title">
+      <div class="intro" id="sample-banner" hidden>
+        <p><strong>Menu d'exemple.</strong> Dis-nous combien vous êtes, ton budget et ce que tu as déjà : le menu s'adapte.</p>
+        <button class="btn btn-small" type="button" data-go="profil">Personnaliser</button>
+      </div>
+
+      <div class="summary">
+        <div class="summary-head">
+          <h1 id="menu-title">Les dîners de la semaine</h1>
+          <p class="muted" id="menu-sub"></p>
+        </div>
+        <div class="budget" id="budget">
+          <div class="budget-row">
+            <span class="budget-label">Courses estimées</span>
+            <span class="budget-value"><b id="total-value">0 €</b> <span class="muted">/ <span id="budget-value">0 €</span></span></span>
+          </div>
+          <div class="gauge" role="meter" aria-label="Part du budget utilisée" aria-valuemin="0" aria-valuemax="100" id="gauge"><span id="gauge-fill"></span></div>
+          <p class="budget-note" id="budget-note"></p>
+        </div>
+        <div class="summary-actions">
+          <button class="btn" type="button" id="regen">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Nouveau menu
+          </button>
+          <span class="hint muted">Les dîners cadenassés sont gardés.</span>
+        </div>
+      </div>
+
+      <ol class="dinners" id="dinners"></ol>
+    </section>
+
+    <!-- COURSES -->
+    <section class="screen" id="screen-courses" aria-labelledby="courses-title" hidden>
+      <div class="list-head">
+        <div>
+          <h1 id="courses-title">Liste de courses</h1>
+          <p class="muted" id="list-sub"></p>
+        </div>
+        <div class="list-total">
+          <span class="tag tag-big"><span id="list-total">0 €</span></span>
+        </div>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="list-progress"></span></div>
+      <div class="list-actions">
+        <button class="btn btn-ghost" type="button" id="copy-list">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          Copier la liste
+        </button>
+        <button class="btn btn-ghost" type="button" id="uncheck-all">Tout décocher</button>
+      </div>
+      <div id="aisles"></div>
+      <div class="pantry-note" id="pantry-note"></div>
+    </section>
+
+    <!-- PROFIL -->
+    <section class="screen" id="screen-profil" aria-labelledby="profil-title" hidden>
+      <h1 id="profil-title">Mes goûts</h1>
+      <p class="muted lede">Le menu se recalcule dès que tu changes un réglage. Rien ne quitte ton téléphone.</p>
+
+      <form class="prefs" id="prefs" novalidate>
+        <fieldset class="field">
+          <legend>Combien êtes-vous à table ?</legend>
+          <div class="stepper">
+            <button type="button" class="step" data-step="people" data-delta="-1" aria-label="Une personne de moins">−</button>
+            <output id="people-out" for="people">2</output>
+            <button type="button" class="step" data-step="people" data-delta="1" aria-label="Une personne de plus">+</button>
+            <input type="hidden" id="people" name="people">
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Combien de dîners à prévoir ?</legend>
+          <div class="seg" id="dinners-seg" role="radiogroup"></div>
+        </fieldset>
+
+        <div class="field">
+          <label for="budget-input" class="legend">Budget courses par semaine</label>
+          <div class="range-row">
+            <input type="range" id="budget-input" name="budget" min="20" max="160" step="5">
+            <span class="tag" id="budget-out">45 €</span>
+          </div>
+        </div>
+
+        <fieldset class="field">
+          <legend>Régime</legend>
+          <div class="chips" id="diet-chips"></div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Ton niveau en cuisine</legend>
+          <div class="seg" id="level-seg" role="radiogroup"></div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Temps max en cuisine le soir</legend>
+          <div class="seg" id="time-seg" role="radiogroup"></div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Dans mon placard <span class="muted">(pas besoin de l'acheter)</span></legend>
+          <div class="chips" id="pantry-chips"></div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Je n'aime pas</legend>
+          <div class="chips chips-no" id="dislike-chips"></div>
+        </fieldset>
+
+        <button type="button" class="btn btn-link" id="reset">Tout remettre à zéro</button>
+      </form>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Navigation">
+    <div class="tabs-in">
+      <button type="button" class="tab" data-tab="menu" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Menu</span>
+      </button>
+      <button type="button" class="tab" data-tab="courses">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l-1.5 11a2 2 0 0 1-2 1.7h-7a2 2 0 0 1-2-1.7L5 7Z M9 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span>Courses</span>
+        <b class="badge" id="tab-badge" hidden></b>
+      </button>
+      <button type="button" class="tab" data-tab="profil">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Mes goûts</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- Fiche recette -->
+<div class="sheet-wrap" id="sheet" hidden>
+  <div class="sheet-backdrop" data-close></div>
+  <article class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+    <button type="button" class="sheet-close" data-close aria-label="Fermer la fiche">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div id="sheet-body"></div>
+  </article>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<!-- BODY:END -->
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
