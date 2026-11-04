@@ -323,3 +323,11 @@ button[aria-pressed="true"] .c-diff { color: var(--accent); font-weight: 700; }
   .compare-list button { grid-template-columns: 5.6rem 1fr auto; }
   .c-diff { display: none; }
 }
+
+/* Air fryer */
+.af-box { display: grid; gap: 4px; background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; }
+.af-box b { color: var(--accent); font-family: var(--f-display); }
+.af-box p { font-size: .92rem; }
+.field-hint { font-size: .85rem; margin-top: -2px; }
+.steps li.swapped { color: var(--muted); }
+.swap-note { display: block; font-size: .8rem; font-weight: 700; color: var(--accent); }

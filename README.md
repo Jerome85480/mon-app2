@@ -17,6 +17,8 @@ Inspirée du principe des planificateurs de repas comme Pimzi, mais c'est une ap
 - **Liste de courses par rayon** : paquets à acheter, prix estimé, prix au kilo, cases à cocher, bouton « Je l'ai déjà », copie en texte.
 - **Choix du magasin** (Lidl, E.Leclerc, Intermarché, Carrefour, Auchan) : les prix sont ajustés selon l'écart moyen entre enseignes
   (palmarès UFC-Que Choisir 2026, étude 2025), avec une comparaison du panier et un lien de recherche sur lidl.fr ou e.leclerc.
+- **Équipement** (plaques induction / vitro / gaz, four, air fryer) : le menu ne propose que ce que tu peux cuisiner.
+  Sans four mais avec un air fryer, les gratins, pizzas, quiches et rôtis passent au air fryer (températures et temps indiqués).
 - Mode sombre, utilisable au pouce sur mobile, installable comme appli (manifest). Tout est stocké sur l'appareil (localStorage).
 
 ## Limites à connaître

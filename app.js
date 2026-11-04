@@ -20,6 +20,11 @@
     { v: 3, label: "Cordon-bleu" },
   ];
   const TIMES = [20, 30, 45, 60];
+  const EQUIPMENT = [
+    { id: "plaque", label: "Plaques (induction, vitro, gaz)", short: "Plaques" },
+    { id: "four", label: "Four", short: "Four" },
+    { id: "airfryer", label: "Air fryer", short: "Air fryer" },
+  ];
   const DINNER_COUNTS = [3, 4, 5, 6, 7];
   const DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
   const DAY_PLAN = { 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] };
@@ -50,6 +55,7 @@
     pantry: ["huile", "pates", "riz", "oignon", "ail", "bouillon", "curry", "paprika"],
     dislikes: [],
     store: "leclerc",
+    equipment: ["plaque", "four"],
   };
 
   /* ---------- État ---------- */
@@ -110,8 +116,19 @@
     Object.keys(r.ing).forEach((id) => (ING[id].flags || []).forEach((x) => f.add(x)));
     return f;
   }
+  const has = (eq, p = state.prefs) => p.equipment.includes(eq);
+  /* Le four peut être remplacé par l'air fryer quand la recette le permet (champ af). */
+  function canCook(r, p = state.prefs) {
+    return (r.need || []).every((n) => has(n, p) || (n === "four" && has("airfryer", p) && !!r.af));
+  }
+  const ovenToAF = (r) => (r.need || []).includes("four") && !has("four") && has("airfryer") && !!r.af;
+  function devicesLabel(r) {
+    return (r.need || []).map((n) => (n === "four" && ovenToAF(r) ? "Air fryer" : EQUIPMENT.find((e) => e.id === n).short)).join(" + ");
+  }
+
   function eligible(r, p = state.prefs) {
     if (r.time > p.time || r.level > p.level) return false;
+    if (!canCook(r, p)) return false;
     const flags = recipeFlags(r);
     for (const d of p.diets) {
       const diet = DIETS.find((x) => x.id === d);
@@ -179,6 +196,8 @@
     // …et finit les paquets ouverts par les autres dîners.
     const used = new Set(chosen.flatMap((c) => Object.keys(byId(c.id).ing)));
     s += 0.3 * ids.filter((id) => used.has(id) && ING[id].pack && !inPantry(id)).length;
+    // Tu as un air fryer : on met en avant les plats qui en profitent
+    if (has("airfryer") && (r.af || r.afTip)) s += 0.25;
     // Variété
     const main = mainOf(r);
     if (main && chosen.some((c) => mainOf(byId(c.id)) === main)) s -= 1.6;
@@ -286,6 +305,7 @@
     hat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17h10v3H7zM7 17a4 4 0 1 1 1.5-7.7A4 4 0 0 1 16 8a4 4 0 0 1 1 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
     swap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h13l-3-3M20 15H7l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+    pan: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="13" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 13h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     unlock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   };
   const levelLabel = (v) => (LEVELS.find((l) => l.v === v) || LEVELS[0]).label;
@@ -298,10 +318,11 @@
     const p = state.prefs;
     const list = $("#dinners");
     $("#sample-banner").hidden = state.customized;
-    $("#menu-sub").textContent = `${state.menu.length} dîner${state.menu.length > 1 ? "s" : ""} · ${p.people} personne${p.people > 1 ? "s" : ""} · ${p.time} min max`;
+    $("#menu-sub").textContent = `${state.menu.length} dîner${state.menu.length > 1 ? "s" : ""} · ${p.people} personne${p.people > 1 ? "s" : ""} · ${p.time} min max`
+      + (state.menu.length && state.menu.length < p.dinners ? ` · seulement ${state.menu.length} sur ${p.dinners} : pas assez de recettes pour tes réglages` : "");
 
     if (!state.menu.length) {
-      list.innerHTML = `<li class="empty"><h2>Aucune recette ne passe tes filtres</h2><p class="muted">Allonge le temps en cuisine, monte d'un niveau ou retire un « je n'aime pas ».</p><button class="btn" type="button" data-go="profil">Ajuster mes goûts</button></li>`;
+      list.innerHTML = `<li class="empty"><h2>Aucune recette ne passe tes filtres</h2><p class="muted">Ajoute un équipement, allonge le temps en cuisine, monte d'un niveau ou retire un « je n'aime pas ».</p><button class="btn" type="button" data-go="profil">Ajuster mes goûts</button></li>`;
     } else {
       list.innerHTML = state.menu.map((m, i) => {
         const r = byId(m.id);
@@ -314,6 +335,7 @@
             <div class="meta">
               <span>${icons.clock}${r.time} min</span>
               <span>${icons.hat}${levelLabel(r.level)}</span>
+              <span>${icons.pan}${devicesLabel(r)}</span>
               ${use.length ? `<span class="pill" title="Déjà dans ton placard">Placard : ${esc(use.slice(0, 2).join(", "))}</span>` : ""}
             </div>
             <div class="dinner-foot">
@@ -477,6 +499,7 @@
 
     $("#store-seg").innerHTML = STORES.map((st) => `<button type="button" role="radio" aria-checked="${p.store === st.id}" data-store="${st.id}">${st.name}</button>`).join("");
     $("#dinners-seg").innerHTML = DINNER_COUNTS.map((n) => `<button type="button" role="radio" aria-checked="${p.dinners === n}" data-set="dinners" data-v="${n}">${n}</button>`).join("");
+    $("#equip-chips").innerHTML = EQUIPMENT.map((e) => `<button type="button" class="chip" data-equip="${e.id}" aria-pressed="${p.equipment.includes(e.id)}">${e.label}</button>`).join("");
     $("#level-seg").innerHTML = LEVELS.map((l) => `<button type="button" role="radio" aria-checked="${p.level === l.v}" data-set="level" data-v="${l.v}">${l.label}</button>`).join("");
     $("#time-seg").innerHTML = TIMES.map((t) => `<button type="button" role="radio" aria-checked="${p.time === t}" data-set="time" data-v="${t}">${t === 60 ? "1 h" : t + " min"}</button>`).join("");
     $("#diet-chips").innerHTML =
@@ -509,7 +532,7 @@
         <div>
           <span class="dinner-day">${dayLabel(i)}</span>
           <h2 id="sheet-title">${esc(r.name)}</h2>
-          <div class="meta"><span>${icons.clock}${r.time} min</span><span>${icons.hat}${levelLabel(r.level)}</span><span class="tag">${fmtE(portionCost(r))} <small>la part</small></span></div>
+          <div class="meta"><span>${icons.clock}${r.time} min</span><span>${icons.hat}${levelLabel(r.level)}</span><span>${icons.pan}${devicesLabel(r)}</span><span class="tag">${fmtE(portionCost(r))} <small>la part</small></span></div>
         </div>
       </div>
       <div class="sheet-body">
@@ -527,13 +550,25 @@
         </section>
         <section style="display:grid;gap:10px">
           <h3>Préparation <span class="muted" style="font-weight:400;font-size:.85rem">(touche une étape quand c'est fait)</span></h3>
-          <ol class="steps">${r.steps.map((s, k) => `<li data-step-i="${k}" class="${done.has(k) ? "ok" : ""}">${esc(s)}</li>`).join("")}</ol>
+          ${afBox(r)}
+          <ol class="steps">${r.steps.map((s, k) => {
+            const swapped = ovenToAF(r) && /four|°C/i.test(s);
+            return `<li data-step-i="${k}" class="${done.has(k) ? "ok" : ""}${swapped ? " swapped" : ""}">${esc(s)}${swapped ? '<span class="swap-note">→ au air fryer, voir l\'encadré</span>' : ""}</li>`;
+          }).join("")}</ol>
         </section>
         <div class="sheet-actions">
           <button type="button" class="btn btn-ghost" data-sheet-swap>${icons.swap} Changer ce dîner</button>
         </div>
       </div>`;
   }
+  function afBox(r) {
+    if (!has("airfryer")) return "";
+    if (ovenToAF(r)) return `<div class="af-box"><b>Sans four, au air fryer</b><p>${esc(r.af)} Remplace l'étape au four par celle-ci.</p></div>`;
+    if (r.af) return `<div class="af-box"><b>Version air fryer</b><p>${esc(r.af)}</p></div>`;
+    if (r.afTip) return `<div class="af-box"><b>Astuce air fryer</b><p>${esc(r.afTip)}</p></div>`;
+    return "";
+  }
+
   function closeSheet() {
     $("#sheet").hidden = true;
     document.body.style.overflow = "";
@@ -567,6 +602,7 @@
   const TABS = ["menu", "courses", "profil"];
   function show(tab) {
     if (!TABS.includes(tab)) tab = "menu";
+    if (!$("#sheet").hidden) closeSheet();
     TABS.forEach((t) => {
       $("#screen-" + t).hidden = t !== tab;
       const b = document.querySelector(`.tab[data-tab="${t}"]`);
@@ -680,6 +716,7 @@
       }
       return prefsChanged();
     }
+    if (d.equip) { toggleIn(state.prefs.equipment, d.equip); return prefsChanged(); }
     if (d.pantry) { toggleIn(state.prefs.pantry, d.pantry); return prefsChanged(); }
     if (d.dislike) { toggleIn(state.prefs.dislikes, d.dislike); return prefsChanged(); }
 
