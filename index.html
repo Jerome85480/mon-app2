@@ -41,7 +41,7 @@
         </div>
         <div class="budget" id="budget">
           <div class="budget-row">
-            <span class="budget-label">Courses estimées</span>
+            <span class="budget-label" id="budget-label">Courses estimées</span>
             <span class="budget-value"><b id="total-value">0 €</b> <span class="muted">/ <span id="budget-value">0 €</span></span></span>
           </div>
           <div class="gauge" role="meter" aria-label="Part du budget utilisée" aria-valuemin="0" aria-valuemax="100" id="gauge"><span id="gauge-fill"></span></div>
@@ -78,6 +78,7 @@
         </button>
         <button class="btn btn-ghost" type="button" id="uncheck-all">Tout décocher</button>
       </div>
+      <section class="compare" id="compare" aria-labelledby="compare-title"></section>
       <div id="aisles"></div>
       <div class="pantry-note" id="pantry-note"></div>
     </section>
@@ -96,6 +97,11 @@
             <button type="button" class="step" data-step="people" data-delta="1" aria-label="Une personne de plus">+</button>
             <input type="hidden" id="people" name="people">
           </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Où fais-tu tes courses ?</legend>
+          <div class="seg" id="store-seg" role="radiogroup"></div>
         </fieldset>
 
         <fieldset class="field">

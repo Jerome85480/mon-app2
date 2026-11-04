@@ -28,6 +28,18 @@
   const STARCHES = ["pates", "riz", "riz_rond", "pdt", "semoule", "tortillas", "pate_pizza", "pate_brisee", "nouilles"];
   const BASICS = new Set(["huile", "curry", "paprika", "bouillon", "sauce_soja"]);
 
+  /* Indice de prix moyen par enseigne, base 1 = E.Leclerc.
+     Sources : palmarès UFC-Que Choisir 2026 (Intermarché hyper +3 %, Carrefour hyper +6,7 %,
+     Auchan ≈ +13 %) et étude de mars 2025 sur 80 produits (Leclerc 2,5 % plus cher que Lidl).
+     C'est une moyenne nationale : l'écart réel dépend du magasin et des produits. */
+  const STORES = [
+    { id: "lidl", name: "Lidl", index: 0.975, search: (q) => "https://www.lidl.fr/q/search?q=" + encodeURIComponent(q) },
+    { id: "leclerc", name: "E.Leclerc", index: 1, search: (q) => "https://www.e.leclerc/recherche?q=" + encodeURIComponent(q) },
+    { id: "intermarche", name: "Intermarché", index: 1.03 },
+    { id: "carrefour", name: "Carrefour", index: 1.067 },
+    { id: "auchan", name: "Auchan", index: 1.13 },
+  ];
+
   const DEFAULTS = {
     people: 2,
     dinners: 5,
@@ -37,6 +49,7 @@
     time: 45,
     pantry: ["huile", "pates", "riz", "oignon", "ail", "bouillon", "curry", "paprika"],
     dislikes: [],
+    store: "leclerc",
   };
 
   /* ---------- État ---------- */
@@ -66,6 +79,9 @@
   const fmtE = (n) => euro.format(n);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const inPantry = (id) => state.prefs.pantry.includes(id);
+  const storeOf = (id = state.prefs.store) => STORES.find((x) => x.id === id) || STORES[1];
+  let priceIndex = null; // forcé temporairement pour comparer les enseignes
+  const price = (id) => ING[id].price * (priceIndex ?? storeOf().index);
 
   function fmtQty(id, q) {
     const u = ING[id].unit;
@@ -109,9 +125,9 @@
     let c = 0;
     for (const [id, q] of Object.entries(r.ing)) {
       const g = ING[id];
-      if (g.pack) c += (q / g.pack) * g.price;
-      else if (g.unit === "pc") c += q * g.price;
-      else c += (q / 1000) * g.price;
+      if (g.pack) c += (q / g.pack) * price(id);
+      else if (g.unit === "pc") c += q * price(id);
+      else c += (q / 1000) * price(id);
     }
     return c;
   }
@@ -121,14 +137,14 @@
     const g = ING[id];
     if (g.pack) {
       const packs = Math.max(1, Math.ceil(qty / g.pack - 1e-6));
-      return { qty, packs, cost: packs * g.price, leftover: packs * g.pack - qty };
+      return { qty, packs, cost: packs * price(id), leftover: packs * g.pack - qty };
     }
     if (g.unit === "pc") {
       const n = Math.max(1, Math.ceil(qty - 1e-6));
-      return { qty: n, packs: 0, cost: n * g.price, leftover: n - qty };
+      return { qty: n, packs: 0, cost: n * price(id), leftover: n - qty };
     }
     const w = Math.max(50, Math.ceil(qty / 50) * 50);
-    return { qty: w, packs: 0, cost: (w / 1000) * g.price, leftover: 0 };
+    return { qty: w, packs: 0, cost: (w / 1000) * price(id), leftover: 0 };
   }
 
   function needs(menu, people = state.prefs.people) {
@@ -319,6 +335,7 @@
     const total = shoppingTotal(state.menu);
     const ratio = p.budget ? total / p.budget : 0;
     const over = total > p.budget + 0.005;
+    $("#budget-label").textContent = "Courses chez " + storeOf().name;
     $("#total-value").textContent = fmtE(total);
     $("#budget-value").textContent = fmtE(p.budget);
     $("#gauge-fill").style.width = Math.min(100, ratio * 100).toFixed(1) + "%";
@@ -355,6 +372,8 @@
     badge.hidden = left <= 0;
     badge.textContent = left;
 
+    renderCompare(total);
+
     $("#aisles").innerHTML = AISLES.map((a) => {
       const items = lines.filter((l) => ING[l.id].aisle === a.id).sort((x, y) => ING[x.id].name.localeCompare(ING[y.id].name, "fr"));
       if (!items.length) return "";
@@ -371,6 +390,39 @@
       : "";
   }
 
+  function storeTotals() {
+    const out = STORES.map((st) => {
+      priceIndex = st.index;
+      const t = shoppingLines().reduce((s, l) => s + l.cost, 0);
+      priceIndex = null;
+      return { ...st, total: t };
+    });
+    return out;
+  }
+
+  function renderCompare(total) {
+    const box = $("#compare");
+    if (!total) { box.innerHTML = ""; return; }
+    const rows = storeTotals();
+    const cur = storeOf();
+    const cheapest = rows.reduce((a, b) => (b.total < a.total ? b : a));
+    box.innerHTML = `
+      <div class="compare-head">
+        <h2 id="compare-title">Ce panier selon le magasin</h2>
+        <span class="muted">touche pour changer</span>
+      </div>
+      <ul class="compare-list">${rows.map((r) => {
+        const diff = r.total - rows.find((x) => x.id === cur.id).total;
+        return `<li><button type="button" data-store="${r.id}" aria-pressed="${r.id === cur.id}">
+          <span class="c-name">${r.name}</span>
+          <span class="c-bar"><span style="width:${((r.total / rows[rows.length - 1].total) * 100).toFixed(1)}%"></span></span>
+          <span class="c-total">${fmtE(r.total)}</span>
+          <span class="c-diff">${r.id === cur.id ? "ton choix" : (diff > 0 ? "+" : "−") + fmtE(Math.abs(diff))}</span>
+        </button></li>`;
+      }).join("")}</ul>
+      <p class="compare-note">Estimation à partir des écarts moyens entre enseignes (palmarès UFC-Que Choisir 2026, étude 2025 sur 80 produits). ${cheapest.id === cur.id ? "Tu es déjà sur l'enseigne la moins chère en moyenne." : `Passer chez ${cheapest.name} ferait gagner environ ${fmtE(rows.find((x) => x.id === cur.id).total - cheapest.total)} sur ce panier : si c'est plus loin, le trajet peut coûter plus que ça.`} Les prix réels varient d'un magasin à l'autre.</p>`;
+  }
+
   function itemHTML(l) {
     const g = ING[l.id];
     const checked = !!state.checked[l.id];
@@ -380,11 +432,13 @@
       detail = `${l.packs} × ${pack || "1"} · il en faut ${fmtQty(l.id, l.need)}`;
       if (l.leftover > g.pack * 0.15) detail += ` · <span class="leftover">reste ${fmtQty(l.id, l.leftover)}</span>`;
     } else if (g.unit === "pc") {
-      detail = `${l.qty} pièce${l.qty > 1 ? "s" : ""} · ${fmtE(g.price)} pièce`;
+      detail = `${l.qty} pièce${l.qty > 1 ? "s" : ""} · ${fmtE(price(l.id))} pièce`;
     } else {
-      detail = `${fmtQty(l.id, l.qty)} au poids · ${fmtE(g.price)}/kg`;
+      detail = `${fmtQty(l.id, l.qty)} au poids · ${fmtE(price(l.id))}/kg`;
     }
-    const unitPrice = g.pack && g.unit !== "pc" ? `<small>${fmtE((g.price / g.pack) * 1000)}/${g.unit === "g" ? "kg" : "L"}</small>` : "";
+    const st = storeOf();
+    if (st.search) detail += ` · <a class="find" href="${st.search(g.name.replace(/\s*\(.*\)/, ""))}" target="_blank" rel="noopener">voir sur ${st.id === "lidl" ? "lidl.fr" : "e.leclerc"}</a>`;
+    const unitPrice = g.pack && g.unit !== "pc" ? `<small>${fmtE((price(l.id) / g.pack) * 1000)}/${g.unit === "g" ? "kg" : "L"}</small>` : "";
     return `<li class="item${checked ? " done" : ""}">
       <input class="check" type="checkbox" id="chk-${l.id}" data-check="${l.id}" ${checked ? "checked" : ""} aria-label="${esc(g.name)} dans le caddie">
       <label class="item-main" for="chk-${l.id}">
@@ -399,7 +453,7 @@
     const lines = shoppingLines();
     const total = lines.reduce((s, l) => s + l.cost, 0);
     const d = weekStart();
-    const head = `Courses de la semaine du ${d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} (≈ ${fmtE(total)})`;
+    const head = `Courses ${storeOf().name}, semaine du ${d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} (≈ ${fmtE(total)})`;
     const body = AISLES.map((a) => {
       const items = lines.filter((l) => ING[l.id].aisle === a.id);
       if (!items.length) return "";
@@ -421,6 +475,7 @@
     $("#budget-input").value = p.budget;
     $("#budget-out").textContent = fmtE(p.budget).replace(",00", "");
 
+    $("#store-seg").innerHTML = STORES.map((st) => `<button type="button" role="radio" aria-checked="${p.store === st.id}" data-store="${st.id}">${st.name}</button>`).join("");
     $("#dinners-seg").innerHTML = DINNER_COUNTS.map((n) => `<button type="button" role="radio" aria-checked="${p.dinners === n}" data-set="dinners" data-v="${n}">${n}</button>`).join("");
     $("#level-seg").innerHTML = LEVELS.map((l) => `<button type="button" role="radio" aria-checked="${p.level === l.v}" data-set="level" data-v="${l.v}">${l.label}</button>`).join("");
     $("#time-seg").innerHTML = TIMES.map((t) => `<button type="button" role="radio" aria-checked="${p.time === t}" data-set="time" data-v="${t}">${t === 60 ? "1 h" : t + " min"}</button>`).join("");
@@ -603,6 +658,16 @@
       return prefsChanged();
     }
     if (d.set) { state.prefs[d.set] = +d.v; return prefsChanged(); }
+    if (d.store) {
+      state.prefs.store = d.store;
+      state.customized = true;
+      save(); // on garde le menu : seuls les prix changent
+      renderPrefs();
+      renderMenu();
+      renderList();
+      toast(`Prix estimés chez ${storeOf().name}`);
+      return;
+    }
     if (d.diet !== undefined) {
       const p = state.prefs;
       if (!d.diet) p.diets = [];

@@ -15,12 +15,14 @@ Inspirée du principe des planificateurs de repas comme Pimzi, mais c'est une ap
 - **Changer** un dîner en un geste, ou le **cadenasser** pour le garder au prochain menu.
 - **Fiche recette** : quantités ajustables au nombre de parts, étapes à cocher pendant la cuisson.
 - **Liste de courses par rayon** : paquets à acheter, prix estimé, prix au kilo, cases à cocher, bouton « Je l'ai déjà », copie en texte.
+- **Choix du magasin** (Lidl, E.Leclerc, Intermarché, Carrefour, Auchan) : les prix sont ajustés selon l'écart moyen entre enseignes
+  (palmarès UFC-Que Choisir 2026, étude 2025), avec une comparaison du panier et un lien de recherche sur lidl.fr ou e.leclerc.
 - Mode sombre, utilisable au pouce sur mobile, installable comme appli (manifest). Tout est stocké sur l'appareil (localStorage).
 
 ## Limites à connaître
 
-- Les **prix sont des moyennes estimées** (supermarché, France 2026), pas les prix réels d'une enseigne.
-  Comparer les magasins demanderait une vraie source de prix (API ou relevés).
+- Les **prix sont des moyennes estimées** (supermarché, France 2026), pas les prix réels d'un magasin. Le choix d'enseigne applique un écart moyen national, pas les prix du magasin près de chez toi.
+  Avoir les prix exacts de ton magasin demanderait une vraie source de prix (API ou relevés).
 - 30 recettes pour l'instant : avec beaucoup de filtres cumulés, le choix devient étroit.
 
 ## Lancer
