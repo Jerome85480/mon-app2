@@ -6,8 +6,11 @@
 <title>Popote</title>
 <meta name="description" content="Tes dîners de la semaine et la liste de courses qui va avec, dans ton budget.">
 <meta name="theme-color" content="#4A2260">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Popote">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -15,7 +18,7 @@
 </head>
 <body>
 <!-- BODY:START -->
-<div class="app">
+<div class="app" id="app">
   <header class="top">
     <div class="top-in">
       <div class="brand">
@@ -24,7 +27,7 @@
       </div>
       <div class="top-meta">
         <span class="week" id="week-label"></span>
-        <button type="button" class="store-pill" id="store-pill" data-go="profil"></button>
+        <button type="button" class="store-pill" id="store-pill" data-act="nav" data-v="reglages"></button>
       </div>
     </div>
   </header>
@@ -32,35 +35,47 @@
   <main class="screens">
     <!-- MENU -->
     <section class="screen" id="screen-menu" aria-labelledby="menu-title">
-      <div class="intro" id="sample-banner" hidden>
-        <p><strong>Menu d'exemple.</strong> Dis-nous combien vous êtes, ton budget et ce que tu as déjà : le menu s'adapte.</p>
-        <button class="btn btn-small" type="button" data-go="profil">Personnaliser</button>
-      </div>
-
       <article class="tonight" id="tonight"></article>
 
-      <div class="receipt" id="budget">
-        <div class="receipt-paper">
-          <p class="receipt-title">Ticket estimé · <span id="receipt-store"></span></p>
-          <dl class="receipt-lines" id="receipt-lines"></dl>
-          <div class="gauge" role="meter" aria-label="Part du budget utilisée" aria-valuemin="0" aria-valuemax="100" id="gauge"><span id="gauge-fill"></span></div>
-          <p class="budget-note" id="budget-note"></p>
+      <aside class="side" aria-label="Budget de la semaine">
+        <div class="receipt" id="budget">
+          <div class="receipt-paper">
+            <p class="receipt-title">Ticket estimé · <span id="receipt-store"></span></p>
+            <dl class="receipt-lines" id="receipt-lines"></dl>
+            <div class="gauge" role="meter" aria-label="Part du budget utilisée" aria-valuemin="0" aria-valuemax="100" id="gauge"><span id="gauge-fill"></span></div>
+            <p class="budget-note" id="budget-note"></p>
+          </div>
         </div>
-      </div>
+      </aside>
 
       <div class="section-head">
         <div>
           <h1 id="menu-title">La semaine</h1>
           <p class="muted" id="menu-sub"></p>
         </div>
-        <button class="btn" type="button" id="regen">
+        <button class="btn" type="button" data-act="regen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Nouveau menu
         </button>
       </div>
 
       <ol class="dinners" id="dinners"></ol>
-      <p class="hint muted">Touche le cadenas pour garder un dîner quand tu refais le menu.</p>
+      <p class="hint muted">Le cadenas garde un dîner quand tu refais le menu. Pour choisir toi-même un plat, passe par Recettes.</p>
+    </section>
+
+    <!-- RECETTES -->
+    <section class="screen" id="screen-recettes" aria-labelledby="recettes-title" hidden>
+      <div class="page-head">
+        <h1 id="recettes-title">Recettes</h1>
+        <p class="muted" id="recettes-sub"></p>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <label class="sr-only" for="search-input">Chercher une recette ou un ingrédient</label>
+        <input type="search" id="search-input" placeholder="Chercher un plat ou un ingrédient" autocomplete="off" enterkeyhint="search">
+      </div>
+      <div class="filters" id="filters" role="group" aria-label="Filtrer les recettes"></div>
+      <ul class="rgrid" id="rgrid"></ul>
     </section>
 
     <!-- COURSES -->
@@ -79,119 +94,57 @@
 
       <div class="done-banner" id="done-banner" hidden>
         <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <b>Caddie complet !</b>
+        <b>Caddie complet</b>
         <span>Tout est coché. Bonne semaine en cuisine.</span>
       </div>
 
+      <form class="add-row" id="extra-form" novalidate>
+        <label class="sr-only" for="extra-input">Ajouter un article à la liste</label>
+        <input type="text" id="extra-input" placeholder="Ajouter un article : lait, café, éponges…" maxlength="60" autocomplete="off" enterkeyhint="done">
+        <button class="btn" type="submit">Ajouter</button>
+      </form>
+
       <div class="list-actions">
-        <button class="btn btn-ghost" type="button" id="copy-list">
+        <button class="btn btn-ghost btn-small" type="button" data-act="copy">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
           Copier la liste
         </button>
-        <button class="btn btn-ghost" type="button" id="uncheck-all">Tout décocher</button>
+        <button class="btn btn-ghost btn-small" type="button" data-act="uncheck">Tout décocher</button>
       </div>
+
       <div id="aisles"></div>
       <section class="compare" id="compare" aria-labelledby="compare-title"></section>
       <div class="pantry-note" id="pantry-note"></div>
     </section>
 
-    <!-- PROFIL -->
-    <section class="screen" id="screen-profil" aria-labelledby="profil-title" hidden>
-      <div class="profil-head">
-        <h1 id="profil-title">Mes goûts</h1>
-        <p class="muted">Le menu se recalcule dès que tu changes un réglage. Rien ne quitte ton téléphone.</p>
+    <!-- RÉGLAGES -->
+    <section class="screen" id="screen-reglages" aria-labelledby="reglages-title" hidden>
+      <div class="page-head">
+        <h1 id="reglages-title">Réglages</h1>
+        <p class="muted">Le menu se recalcule dès que tu changes un réglage. Les dîners gardés restent en place.</p>
       </div>
-
-      <form class="prefs" id="prefs" novalidate>
-        <div class="group">
-          <h2 class="group-title">Le foyer</h2>
-          <fieldset class="field">
-            <legend>Combien êtes-vous à table ?</legend>
-            <div class="stepper">
-              <button type="button" class="step" data-step="people" data-delta="-1" aria-label="Une personne de moins">−</button>
-              <output id="people-out" for="people">2</output>
-              <button type="button" class="step" data-step="people" data-delta="1" aria-label="Une personne de plus">+</button>
-              <input type="hidden" id="people" name="people">
-            </div>
-          </fieldset>
-          <fieldset class="field">
-            <legend>Combien de dîners à prévoir ?</legend>
-            <div class="seg" id="dinners-seg" role="radiogroup"></div>
-          </fieldset>
-        </div>
-
-        <div class="group">
-          <h2 class="group-title">Les courses</h2>
-          <fieldset class="field">
-            <legend>Où fais-tu tes courses ?</legend>
-            <div class="seg" id="store-seg" role="radiogroup"></div>
-          </fieldset>
-          <div class="field">
-            <label for="budget-input" class="legend">Budget par semaine</label>
-            <div class="range-row">
-              <input type="range" id="budget-input" name="budget" min="20" max="160" step="5">
-              <span class="tag tag-mid" id="budget-out">45 €</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="group">
-          <h2 class="group-title">En cuisine</h2>
-          <fieldset class="field">
-            <legend>Mon équipement</legend>
-            <div class="chips" id="equip-chips"></div>
-            <p class="field-hint muted">Pas de four mais un air fryer ? Les gratins, pizzas et rôtis passent au air fryer.</p>
-          </fieldset>
-          <fieldset class="field">
-            <legend>Mon niveau</legend>
-            <div class="seg" id="level-seg" role="radiogroup"></div>
-          </fieldset>
-          <fieldset class="field">
-            <legend>Temps max le soir</legend>
-            <div class="seg" id="time-seg" role="radiogroup"></div>
-          </fieldset>
-        </div>
-
-        <div class="group">
-          <h2 class="group-title">Ce que je mange</h2>
-          <fieldset class="field">
-            <legend>Régime</legend>
-            <div class="chips" id="diet-chips"></div>
-          </fieldset>
-          <fieldset class="field">
-            <legend>Je n'aime pas</legend>
-            <div class="chips chips-no" id="dislike-chips"></div>
-          </fieldset>
-        </div>
-
-        <div class="group">
-          <h2 class="group-title">Mon placard</h2>
-          <fieldset class="field">
-            <legend class="sr-only">Ingrédients que j'ai déjà</legend>
-            <p class="field-hint muted">Ce que tu as déjà n'est pas ajouté à la liste, et le menu l'utilise en priorité.</p>
-            <div class="chips" id="pantry-chips"></div>
-          </fieldset>
-        </div>
-
-        <button type="button" class="btn-link" id="reset">Tout remettre à zéro</button>
-      </form>
+      <form class="prefs" id="prefs" novalidate></form>
     </section>
   </main>
 
   <nav class="tabs" aria-label="Navigation">
     <div class="tabs-in" id="tabs-in">
-      <button type="button" class="tab" data-tab="menu" aria-current="page">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <button type="button" class="tab" data-act="nav" data-v="menu" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 3v4M16 3v4M4 10h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <span>Menu</span>
       </button>
-      <button type="button" class="tab" data-tab="courses">
+      <button type="button" class="tab" data-act="nav" data-v="recettes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Recettes</span>
+      </button>
+      <button type="button" class="tab" data-act="nav" data-v="courses">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.5l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L21 8H6.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.5" cy="19.5" r="1.5" fill="currentColor"/><circle cx="17" cy="19.5" r="1.5" fill="currentColor"/></svg>
         <span>Courses</span>
         <b class="badge" id="tab-badge" hidden></b>
       </button>
-      <button type="button" class="tab" data-tab="profil">
+      <button type="button" class="tab" data-act="nav" data-v="reglages">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-        <span>Mes goûts</span>
+        <span>Réglages</span>
       </button>
     </div>
   </nav>
@@ -199,18 +152,38 @@
 
 <!-- Fiche recette -->
 <div class="sheet-wrap" id="sheet" hidden>
-  <div class="sheet-backdrop" data-close></div>
+  <div class="sheet-backdrop" data-act="close"></div>
   <article class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
-    <button type="button" class="sheet-close" data-close aria-label="Fermer la fiche">
+    <button type="button" class="sheet-close" data-act="close" aria-label="Fermer">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
     <div id="sheet-body"></div>
   </article>
 </div>
 
+<!-- Premier lancement -->
+<div class="ob" id="onboarding" role="dialog" aria-modal="true" aria-labelledby="ob-title" hidden>
+  <div class="ob-in">
+    <div class="ob-top">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="currentColor"/><path d="M7 15h18a9 9 0 0 1-18 0Z" fill="var(--tag)"/><path d="M12 6.5c0 1.6-1.6 1.6-1.6 3.2M16.5 5.5c0 1.6-1.6 1.6-1.6 3.2M21 6.5c0 1.6-1.6 1.6-1.6 3.2" stroke="var(--bg)" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+        <span>Popote</span>
+      </div>
+      <button type="button" class="btn-link" data-act="ob-skip">Passer</button>
+    </div>
+    <div class="ob-progress" id="ob-progress" aria-hidden="true"></div>
+    <div class="ob-body" id="ob-body"></div>
+    <div class="ob-nav">
+      <button type="button" class="btn btn-ghost" id="ob-back" data-act="ob-back">Retour</button>
+      <button type="button" class="btn" id="ob-next" data-act="ob-next">Continuer</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <!-- BODY:END -->
 <script src="data.js"></script>
+<script src="planner.js"></script>
 <script src="plate.js"></script>
 <script src="app.js"></script>
 </body>

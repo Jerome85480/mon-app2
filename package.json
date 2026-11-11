@@ -1,0 +1,10 @@
+{
+  "name": "popote",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Les dîners de la semaine et la liste de courses qui va avec, dans ton budget.",
+  "scripts": {
+    "start": "npx serve .",
+    "test": "node --test"
+  }
+}
