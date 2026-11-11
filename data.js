@@ -103,19 +103,32 @@ window.INGREDIENTS = {
   pate_feuilletee: { name: "Pâte feuilletée", unit: "pc", pack: 1, price: 1.3, aisle: "frais", flags: ["gluten", "lactose"] },
   ravioli:      { name: "Raviolis frais", unit: "g", pack: 300, price: 2.3, aisle: "frais", flags: ["gluten", "lactose"] },
   pain_burger:  { name: "Pains à burger", unit: "pc", pack: 4, price: 1.9, aisle: "boulangerie", flags: ["gluten"] },
+
+  // Plats du dimanche
+  boeuf_braiser: { name: "Bœuf à braiser (paleron)", unit: "g", price: 13.9, aisle: "boucherie", flags: ["viande"] },
+  veau:         { name: "Sauté de veau", unit: "g", price: 19.9, aisle: "boucherie", flags: ["viande"] },
+  poulet_entier: { name: "Poulet fermier entier", unit: "pc", price: 11.5, aisle: "boucherie", flags: ["viande"] },
+  roti_porc:    { name: "Rôti de porc", unit: "g", price: 9.9, aisle: "boucherie", flags: ["porc"] },
+  moules:       { name: "Moules de bouchot", unit: "g", price: 5.9, aisle: "boucherie", flags: ["poisson"] },
+  reblochon:    { name: "Reblochon", unit: "pc", pack: 1, price: 5.9, aisle: "frais", flags: ["lactose"] },
+  lasagnes:     { name: "Plaques de lasagnes", unit: "g", pack: 500, price: 1.6, aisle: "epicerie", flags: ["gluten"] },
+  farine:       { name: "Farine", unit: "g", pack: 1000, price: 0.9, aisle: "epicerie", flags: ["gluten"] },
+  moutarde:     { name: "Moutarde de Dijon", unit: "g", pack: 200, price: 1.4, aisle: "epicerie" },
+  vin_rouge:    { name: "Vin rouge (pour la cuisine)", unit: "ml", pack: 750, price: 4.5, aisle: "epicerie" },
+  vin_blanc:    { name: "Vin blanc sec (pour la cuisine)", unit: "ml", pack: 750, price: 4.2, aisle: "epicerie" },
 };
 
 /* Ingrédients proposés dans « Mon placard » (ce qu'on a souvent déjà). */
 window.PANTRY = [
   "huile", "pates", "riz", "semoule", "lentilles", "tomates_conc", "oeufs", "lait", "beurre",
-  "creme", "fromage_rape", "oignon", "ail", "pdt", "carotte", "bouillon", "curry", "paprika", "sauce_soja", "cumin", "herbes", "chapelure",
+  "creme", "fromage_rape", "oignon", "ail", "pdt", "carotte", "bouillon", "curry", "paprika", "sauce_soja", "cumin", "herbes", "chapelure", "farine", "moutarde",
 ];
 
 /* Ingrédients qu'on peut exclure (« je n'aime pas »). */
 window.DISLIKES = [
   "champignons", "poivron", "courgette", "epinards", "brocoli", "poireau", "butternut",
   "avocat", "feta", "tofu", "lentilles", "pois_chiches", "saumon", "cabillaud", "thon", "chorizo",
-  "aubergine", "patate_douce", "chou_fleur", "crevettes", "sardines", "merguez", "olives", "yaourt",
+  "aubergine", "patate_douce", "chou_fleur", "crevettes", "sardines", "merguez", "olives", "yaourt", "moules", "veau",
 ];
 
 /* Recettes — quantités par personne. level : 1 facile, 2 moyen, 3 avancé. hue : couleur de l'assiette.
@@ -316,4 +329,51 @@ window.RECIPES = [
   { id: "chili_sin_carne", name: "Chili sin carne", time: 35, level: 1, hue: 2, need: ["plaque"],
     ing: { haricots: 120, mais: 50, tomates_conc: 120, poivron: 0.5, oignon: 0.25, paprika: 3, cumin: 2, riz: 70 },
     steps: ["Fais revenir oignon et poivron.", "Ajoute épices, tomates, haricots et maïs. Mijote 20 min.", "Sers avec le riz."] },
+
+  /* ---- Plats du dimanche : plus longs, plus élaborés ---- */
+  { id: "boeuf_bourguignon", name: "Bœuf bourguignon", sunday: true, time: 210, level: 2, hue: 8, need: ["plaque"], tip: "C'est encore meilleur réchauffé : tu peux le faire la veille.",
+    ing: { boeuf_braiser: 200, vin_rouge: 120, lardons: 30, carotte: 100, champignons: 80, oignon: 0.5, farine: 8, bouillon: 0.5, pdt: 200 },
+    steps: ["Coupe la viande en gros cubes et sèche-la bien. Fais-la dorer en plusieurs fois dans une cocotte avec un filet d'huile, puis réserve.", "Dans la même cocotte, fais revenir les lardons, les oignons et les carottes en rondelles 5 min.", "Remets la viande, saupoudre de farine et mélange 1 min. Verse le vin et le bouillon à hauteur.", "Couvre et laisse mijoter 2 h 30 à feu très doux, en remuant de temps en temps.", "Ajoute les champignons 20 min avant la fin. Sers avec les pommes de terre cuites à l'eau."] },
+  { id: "blanquette", name: "Blanquette de veau à l'ancienne", sunday: true, time: 150, level: 3, hue: 42, need: ["plaque"], tip: "Ne fais pas bouillir la sauce après la crème : elle tournerait.",
+    ing: { veau: 180, carotte: 100, champignons: 80, oignon: 0.5, bouillon: 0.5, beurre: 10, farine: 10, creme: 50, citron: 0.25, riz: 70 },
+    steps: ["Mets la viande dans une cocotte, couvre d'eau froide, porte à ébullition et écume.", "Ajoute les carottes, l'oignon et le bouillon. Laisse frémir 1 h 30 à couvert.", "Égoutte la viande et les légumes en gardant le bouillon. Lance le riz.", "Fais fondre le beurre, ajoute la farine, mélange 1 min, puis verse 500 ml de bouillon en fouettant jusqu'à ce que la sauce épaississe.", "Ajoute les champignons 10 min, puis la crème et le jus de citron hors du feu. Remets la viande et les carottes."] },
+  { id: "poulet_roti_dimanche", name: "Poulet rôti du dimanche & grenailles", sunday: true, time: 105, level: 2, hue: 36, need: ["four"], tip: "Le poulet est cuit quand le jus qui coule de la cuisse est clair, pas rosé.",
+    ing: { poulet_entier: 0.25, pdt: 250, ail: 2, beurre: 10, herbes: 1, citron: 0.25, salade: 0.25 },
+    steps: ["Sors le poulet du réfrigérateur 30 min avant. Préchauffe le four à 210 °C.", "Glisse le citron et l'ail dans le poulet, frotte la peau avec le beurre, sel, poivre et herbes.", "Mets-le dans un grand plat avec les pommes de terre coupées en deux et un verre d'eau.", "Enfourne 1 h 15 en arrosant toutes les 20 min avec le jus.", "Laisse reposer 10 min sous une feuille d'alu avant de découper. Sers avec la salade."] },
+  { id: "roti_porc_moutarde", name: "Rôti de porc à la moutarde & carottes fondantes", sunday: true, time: 90, level: 2, hue: 30, need: ["plaque", "four"],
+    ing: { roti_porc: 180, moutarde: 10, carotte: 150, oignon: 0.5, vin_blanc: 50, pdt: 200 },
+    steps: ["Préchauffe le four à 180 °C. Badigeonne le rôti de moutarde, sale et poivre.", "Fais-le dorer sur toutes les faces dans une cocotte allant au four.", "Ajoute les oignons, les carottes en rondelles, les pommes de terre en morceaux et le vin blanc.", "Enfourne 1 h à couvert, en arrosant à mi-cuisson.", "Laisse reposer 10 min avant de trancher."] },
+  { id: "pot_au_feu", name: "Pot-au-feu", sunday: true, time: 240, level: 2, hue: 40, need: ["plaque"], tip: "Garde le bouillon : c'est une très bonne soupe pour le lundi soir.",
+    ing: { boeuf_braiser: 220, carotte: 120, poireau: 120, pdt: 200, oignon: 0.5, bouillon: 0.5, moutarde: 10 },
+    steps: ["Mets la viande dans un grand faitout, couvre largement d'eau froide et porte à ébullition. Écume.", "Ajoute l'oignon, le bouillon, sel et poivre. Laisse frémir 2 h 30 à couvert.", "Ajoute les carottes et les poireaux en tronçons, poursuis 45 min.", "Ajoute les pommes de terre et cuis encore 25 min.", "Sers la viande et les légumes avec la moutarde, et le bouillon à part."] },
+  { id: "lasagnes", name: "Lasagnes bolognaise maison", sunday: true, time: 120, level: 2, hue: 10, need: ["plaque", "four"], af: "Petit plat au air fryer : 170 °C, 25 min, couvert d'aluminium les 10 premières minutes.",
+    ing: { lasagnes: 70, boeuf: 120, tomates_conc: 150, oignon: 0.25, carotte: 40, lait: 150, beurre: 15, farine: 15, fromage_rape: 30, parmesan: 10 },
+    steps: ["Prépare la bolognaise : fais revenir oignon et carotte râpée, ajoute la viande puis les tomates. Laisse mijoter 30 min.", "Prépare la béchamel : fais fondre le beurre, ajoute la farine, puis le lait petit à petit en fouettant jusqu'à ce que ça épaississe. Sale, poivre.", "Préchauffe le four à 180 °C. Dans un plat : un peu de sauce, des plaques, de la bolognaise, de la béchamel. Recommence trois fois.", "Termine par la béchamel, le fromage râpé et le parmesan.", "Cuis 40 min. Laisse reposer 10 min avant de couper."] },
+  { id: "lasagnes_vege", name: "Lasagnes épinards & champignons", sunday: true, time: 100, level: 2, hue: 100, need: ["plaque", "four"], af: "Petit plat au air fryer : 170 °C, 25 min, couvert d'aluminium les 10 premières minutes.",
+    ing: { lasagnes: 70, epinards: 150, champignons: 100, ail: 1, lait: 150, beurre: 15, farine: 15, fromage_rape: 30 },
+    steps: ["Fais revenir les champignons émincés avec l'ail, puis ajoute les épinards et laisse évaporer l'eau.", "Prépare la béchamel : beurre fondu, farine, puis le lait en fouettant jusqu'à ce que ça épaississe.", "Mélange la moitié de la béchamel avec les légumes.", "Monte les lasagnes en alternant plaques et légumes, termine par la béchamel et le fromage.", "Cuis 40 min à 180 °C."] },
+  { id: "tartiflette", name: "Tartiflette & salade verte", sunday: true, time: 75, level: 2, hue: 46, need: ["plaque", "four"], af: "Petit plat au air fryer : 180 °C, 15 à 20 min.",
+    ing: { pdt: 280, reblochon: 0.25, lardons: 50, oignon: 0.5, creme: 30, vin_blanc: 20, salade: 0.25 },
+    steps: ["Cuis les pommes de terre 20 min à l'eau, laisse tiédir et coupe-les en rondelles.", "Fais revenir les lardons et les oignons émincés, déglace avec le vin blanc.", "Préchauffe le four à 200 °C. Dans un plat, alterne pommes de terre, lardons et un peu de crème.", "Coupe le reblochon en deux dans l'épaisseur et pose-le dessus, croûte vers le haut.", "Enfourne 25 min. Sers avec la salade."] },
+  { id: "moules_frites", name: "Moules marinières & frites maison", sunday: true, time: 60, level: 2, hue: 48, need: ["plaque", "four"], af: "Frites au air fryer : 200 °C, 20 min en secouant le panier.",
+    ing: { moules: 400, vin_blanc: 60, oignon: 0.5, persil: 0.2, creme: 30, beurre: 10, pdt: 250 },
+    steps: ["Coupe les pommes de terre en frites, huile-les légèrement et enfourne 35 min à 220 °C en les retournant.", "Gratte et rince les moules. Jette celles qui restent ouvertes quand tu les tapotes.", "Fais fondre le beurre dans un grand faitout, ajoute l'oignon émincé, puis le vin blanc.", "Ajoute les moules, couvre et cuis 5 à 6 min à feu vif en secouant, jusqu'à ce qu'elles s'ouvrent.", "Ajoute la crème et le persil. Jette les moules restées fermées."] },
+  { id: "feuillete_saumon", name: "Feuilleté de saumon aux épinards", sunday: true, time: 70, level: 3, hue: 16, need: ["plaque", "four"], af: "Feuilleté au air fryer : 180 °C, 20 min dans un moule adapté.",
+    ing: { pate_feuilletee: 0.4, saumon: 1, epinards: 100, creme: 30, citron: 0.25, oeufs: 0.25, salade: 0.25 },
+    steps: ["Fais revenir les épinards jusqu'à évaporation, ajoute la crème, sel, poivre et le zeste de citron.", "Préchauffe le four à 200 °C. Étale une pâte, dépose la moitié des épinards, les pavés de saumon, puis le reste des épinards.", "Couvre avec la seconde pâte, soude les bords et fais une petite cheminée au centre.", "Dore à l'œuf battu et enfourne 30 min.", "Laisse reposer 5 min et sers avec la salade."] },
+  { id: "tajine_poulet", name: "Tajine de poulet, citron & olives", sunday: true, time: 90, level: 2, hue: 44, need: ["plaque"],
+    ing: { poulet: 160, oignon: 0.5, citron: 0.5, olives: 25, cumin: 2, ail: 1, bouillon: 0.5, semoule: 80 },
+    steps: ["Fais dorer les morceaux de poulet dans une cocotte, réserve.", "Fais fondre les oignons émincés avec l'ail et le cumin.", "Remets le poulet, ajoute les citrons en quartiers et le bouillon à mi-hauteur.", "Couvre et laisse mijoter 1 h à feu doux. Ajoute les olives 15 min avant la fin.", "Gonfle la semoule à l'eau bouillante salée et sers."] },
+  { id: "tian", name: "Tian provençal & riz aux herbes", sunday: true, time: 90, level: 2, hue: 6, need: ["plaque", "four"], af: "Tian dans un plat adapté au panier : 170 °C, 35 min.",
+    ing: { courgette: 150, aubergine: 120, tomate: 150, oignon: 0.5, ail: 1, herbes: 1, riz: 70 },
+    steps: ["Préchauffe le four à 180 °C. Fais fondre les oignons et l'ail 10 min, étale-les au fond d'un plat.", "Coupe courgettes, aubergines et tomates en rondelles fines.", "Range-les debout en les alternant, bien serrées.", "Arrose d'huile, sale, poivre, parsème d'herbes. Enfourne 1 h 15.", "Sers avec le riz."] },
+  { id: "parmentier_lentilles", name: "Parmentier de lentilles & patate douce", sunday: true, time: 80, level: 2, hue: 28, need: ["plaque", "four"], af: "Gratine au air fryer : 180 °C, 12 min.",
+    ing: { lentilles: 70, patate_douce: 250, carotte: 80, oignon: 0.25, tomates_conc: 80, cumin: 2, beurre: 10, fromage_rape: 20 },
+    steps: ["Cuis les lentilles 25 min. Fais revenir oignon et carottes en dés avec le cumin, ajoute les tomates et les lentilles égouttées.", "Cuis la patate douce en cubes 15 min à l'eau, puis écrase-la avec le beurre.", "Préchauffe le four à 200 °C. Mets les lentilles dans un plat, couvre de purée.", "Parsème de fromage et gratine 20 min."] },
+  { id: "tourte_poulet", name: "Tourte poulet-champignons", sunday: true, time: 75, level: 2, hue: 34, need: ["plaque", "four"], af: "Tourte au air fryer : 175 °C, 25 min dans un moule adapté.",
+    ing: { pate_feuilletee: 0.5, poulet: 120, champignons: 100, creme: 50, oignon: 0.25, salade: 0.25 },
+    steps: ["Fais dorer le poulet en dés avec l'oignon, ajoute les champignons 5 min, puis la crème.", "Préchauffe le four à 190 °C. Foncez un moule avec une pâte, verse la garniture.", "Couvre avec la seconde pâte, soude les bords et fais une cheminée.", "Enfourne 35 min. Sers avec la salade."] },
+  { id: "risotto_potiron", name: "Risotto au potiron & parmesan", sunday: true, time: 50, level: 2, hue: 26, need: ["plaque"],
+    ing: { riz_rond: 90, butternut: 150, oignon: 0.25, vin_blanc: 30, bouillon: 0.5, parmesan: 25, beurre: 10 },
+    steps: ["Fais revenir l'oignon dans le beurre, ajoute la courge en petits dés 5 min.", "Ajoute le riz, nacre-le 2 min, déglace au vin blanc.", "Verse le bouillon chaud louche par louche en remuant, pendant 20 min.", "Hors du feu, ajoute le parmesan et une noix de beurre. Couvre 2 min avant de servir."] },
 ];

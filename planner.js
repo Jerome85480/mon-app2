@@ -40,8 +40,8 @@
   const DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
   const DAY_PLAN = { 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] };
   // Ingrédient « principal » et féculent d'un plat, pour varier la semaine.
-  const MAINS = ["poulet", "dinde", "boeuf", "merguez", "saucisses", "lardons", "jambon", "chorizo", "saumon", "cabillaud", "crevettes", "thon", "sardines", "tofu", "pois_chiches", "lentilles", "haricots", "oeufs", "gnocchis", "ravioli"];
-  const STARCHES = ["pates", "riz", "riz_rond", "pdt", "patate_douce", "semoule", "quinoa", "tortillas", "pate_pizza", "pate_brisee", "pate_feuilletee", "nouilles", "pain_burger"];
+  const MAINS = ["boeuf_braiser", "veau", "poulet_entier", "roti_porc", "poulet", "dinde", "boeuf", "merguez", "saucisses", "lardons", "jambon", "chorizo", "saumon", "cabillaud", "crevettes", "thon", "sardines", "tofu", "pois_chiches", "lentilles", "haricots", "oeufs", "gnocchis", "ravioli"];
+  const STARCHES = ["pates", "riz", "riz_rond", "pdt", "patate_douce", "semoule", "quinoa", "tortillas", "pate_pizza", "pate_brisee", "pate_feuilletee", "nouilles", "pain_burger", "lasagnes"];
   // Fonds de placard qui ne « comptent » pas comme une raison de choisir un plat.
   const BASICS = new Set(["huile", "curry", "paprika", "bouillon", "sauce_soja", "cumin", "herbes"]);
 
@@ -56,24 +56,46 @@
     dislikes: [],
     store: "leclerc",
     equipment: ["plaque", "four"],
+    sunday: true, // un plat plus élaboré le dimanche
   };
 
   /* ---------- Dates ---------- */
-  /* Lundi de la semaine à planifier. Le week-end, on prépare la semaine suivante. */
-  function weekStart(now = new Date()) {
+  /* Lundi de la semaine à planifier. Une fois le dernier repas prévu passé (lastOffset, 0 = lundi),
+     on prépare la semaine suivante : dès le samedi pour un menu du lundi au vendredi,
+     seulement le lundi quand il y a un plat du dimanche. */
+  function weekStart(now = new Date(), lastOffset = 4) {
     const d = new Date(now);
     const dow = (d.getDay() + 6) % 7; // 0 = lundi
-    d.setDate(d.getDate() - dow + (dow >= 5 ? 7 : 0));
+    d.setDate(d.getDate() - dow + (dow > lastOffset ? 7 : 0));
     d.setHours(0, 0, 0, 0);
     return d;
   }
   function isoDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
-  /* Jour (0 = lundi) du i-ème dîner selon le nombre de dîners prévus. */
-  function dayOffset(dinners, i) {
-    const plan = DAY_PLAN[dinners] || DAY_PLAN[5];
-    return plan[i] ?? i;
+  /* Repas de la semaine : les dîners prévus (off = jour, 0 = lundi), plus le dimanche s'il a droit à son plat. */
+  function slots(prefs) {
+    const out = (DAY_PLAN[prefs.dinners] || DAY_PLAN[5]).filter((off) => !(prefs.sunday && off === 6)).map((off) => ({ off, sun: false }));
+    if (prefs.sunday) out.push({ off: 6, sun: true });
+    return out;
+  }
+  const lastOffset = (prefs) => Math.max(...slots(prefs).map((s) => s.off));
+  /* Jour de chaque plat du menu : le plat du dimanche est toujours dimanche, les autres suivent l'ordre des dîners. */
+  function menuDays(menu, prefs) {
+    const week = slots(prefs).filter((s) => !s.sun).map((s) => s.off);
+    let k = 0;
+    return menu.map((m) => {
+      if (m.sun) return 6;
+      const off = week[k] ?? k;
+      k++;
+      return off;
+    });
+  }
+  function fmtTime(min) {
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
   }
 
   return function createPlanner({ INGREDIENTS: ING, RECIPES }) {
@@ -138,6 +160,12 @@
       return out;
     }
     const eligible = (r, prefs) => whyNot(r, prefs).length === 0;
+    /* Le dimanche, on a le temps : pas de durée maximum, et un cran de difficulté en plus. Régime, goûts et équipement restent respectés. */
+    const sundayPrefs = (prefs) => ({ ...prefs, time: Infinity, level: Math.min(3, prefs.level + 1) });
+    const whyNotSunday = (r, prefs) => whyNot(r, sundayPrefs(prefs));
+    const eligibleSunday = (r, prefs) => !!r.sunday && whyNotSunday(r, prefs).length === 0;
+    /* Un plat choisi ou gardé à la main reste au menu s'il respecte régime, goûts et équipement, même s'il est long. */
+    const fitsHousehold = (r, prefs) => whyNot(r, { ...prefs, time: Infinity, level: 3 }).length === 0;
     const isVegetarian = (r) => {
       const f = flagsOf(r);
       return !f.has("viande") && !f.has("porc") && !f.has("poisson");
@@ -219,7 +247,8 @@
       const st = starchOf(r);
       if (st) s -= 0.5 * chosen.filter((c) => starchOf(byId(c.id)) === st).length;
       // Budget : pénalise les plats chers par rapport au budget par assiette
-      const target = prefs.budget / Math.max(1, prefs.dinners * prefs.people);
+      // Le plat du dimanche a droit à une plus grosse part du budget (environ le double d'un dîner).
+      const target = (prefs.budget / Math.max(1, slots(prefs).length * prefs.people)) * (r.sunday ? 2 : 1);
       const pc = portionCost(r, prefs.store);
       if (pc > target) s -= ((pc - target) / target) * 1.2;
       return s;
@@ -239,76 +268,128 @@
 
     /* Recettes proposables : celles qui conviennent, sans celles de la semaine dernière s'il reste assez de choix. */
     function poolFor(prefs, history = []) {
-      const all = RECIPES.filter((r) => eligible(r, prefs));
+      // En semaine : pas les plats du dimanche (trop longs pour un soir de semaine).
+      const all = RECIPES.filter((r) => !r.sunday && eligible(r, prefs));
       const last = new Set(history[0] || []);
       const fresh = all.filter((r) => !last.has(r.id));
       return fresh.length >= prefs.dinners * 2 ? fresh : all;
     }
 
-    /* Tant que le menu dépasse le budget, remplace le dîner (non gardé) qui fait le plus baisser la note. */
-    function fitBudget(menu, pool, prefs) {
-      for (let round = 0; round < 25; round++) {
-        const total = shoppingTotal(menu, prefs);
-        if (total <= prefs.budget) break;
-        let bestTotal = total;
+    /* Plats du dimanche proposables, sans celui de la semaine dernière s'il reste du choix. */
+    function sundayPool(prefs, history = []) {
+      const all = RECIPES.filter((r) => eligibleSunday(r, prefs));
+      const last = new Set(history[0] || []);
+      const fresh = all.filter((r) => !last.has(r.id));
+      return fresh.length >= 2 ? fresh : all;
+    }
+
+    /* Tant que le menu dépasse le budget, remplace le repas (non gardé) qui fait le plus baisser la note.
+       pools : { pool, sunPool }. frozen : ids à ne pas toucher. */
+    function fitBudget(menu, pools, prefs, frozen) {
+      /* Meilleur échange possible parmi les repas qui passent le filtre « which ». */
+      const bestMove = (which) => {
+        let bestTotal = shoppingTotal(menu, prefs);
         let move = null;
         const ids = new Set(menu.map((m) => m.id));
         menu.forEach((m, i) => {
-          if (m.locked) return;
-          for (const r of pool) {
+          if (m.locked || (frozen && frozen.has(m.id)) || !which(m)) return;
+          for (const r of m.sun && pools.sunPool.length ? pools.sunPool : pools.pool) {
             if (ids.has(r.id)) continue;
             const trial = menu.slice();
-            trial[i] = { id: r.id, locked: false };
+            trial[i] = { ...m, id: r.id };
             const t = shoppingTotal(trial, prefs);
             if (t < bestTotal - 0.01) { bestTotal = t; move = [i, r.id]; }
           }
         });
-        if (!move) break;
-        menu[move[0]] = { id: move[1], locked: false };
+        return move;
+      };
+      // D'abord alléger les dîners de semaine ; le plat du dimanche n'est simplifié qu'en dernier recours.
+      for (const which of [(m) => !m.sun, () => true]) {
+        for (let round = 0; round < 25; round++) {
+          if (shoppingTotal(menu, prefs) <= prefs.budget) return menu;
+          const move = bestMove(which);
+          if (!move) break;
+          menu[move[0]] = { ...menu[move[0]], id: move[1], locked: false };
+        }
       }
       return menu;
     }
 
-    /* ctx : { prefs, previous (menu actuel), favorites, history, rng, keepLocked } */
+    /* ctx : { prefs, previous (menu actuel), favorites, history, rng, keepLocked, keepAll }
+       keepAll : garde tout le menu actuel et ne remplit que les repas manquants. */
     function generate(ctx) {
-      const { prefs, previous = [], history = [], keepLocked = true } = ctx;
-      const pool = poolFor(prefs, history);
-      const ok = new Set(RECIPES.filter((r) => eligible(r, prefs)).map((r) => r.id));
-      const slots = new Array(prefs.dinners).fill(null);
-      if (keepLocked) {
-        // Les dîners gardés conservent leur jour quand c'est possible.
-        previous.forEach((m, i) => {
-          if (!m.locked || !ok.has(m.id) || slots.some((s) => s && s.id === m.id)) return;
-          const at = i < prefs.dinners && !slots[i] ? i : slots.indexOf(null);
-          if (at >= 0) slots[at] = { id: m.id, locked: true };
-        });
+      const { prefs, previous = [], history = [], keepLocked = true, keepAll = false } = ctx;
+      const sl = slots(prefs);
+      const sunAt = sl.findIndex((x) => x.sun);
+      const pools = { pool: poolFor(prefs, history), sunPool: sundayPool(prefs, history) };
+      const okKept = (id) => fitsHousehold(byId(id), prefs);
+      const out = new Array(sl.length).fill(null);
+      if (keepLocked || keepAll) {
+        // Les repas gardés conservent leur jour quand c'est possible.
+        let rank = 0;
+        for (const m of previous) {
+          const k = m.sun ? -1 : rank++;
+          if (!(keepAll || m.locked) || !byId(m.id) || out.some((x) => x && x.id === m.id)) continue;
+          if (!okKept(m.id)) continue;
+          if (m.sun && sunAt >= 0 && !out[sunAt]) {
+            out[sunAt] = { id: m.id, locked: !!m.locked, sun: true };
+            continue;
+          }
+          const at = k >= 0 && k < sl.length && !sl[k].sun && !out[k] ? k : out.findIndex((x, i) => !x && !sl[i].sun);
+          if (at >= 0) out[at] = { id: m.id, locked: !!m.locked };
+        }
       }
-      for (let i = 0; i < prefs.dinners; i++) {
-        if (slots[i]) continue;
-        const r = pickBest(pool, slots.filter(Boolean), [], ctx);
-        if (r) slots[i] = { id: r.id, locked: false };
-      }
-      return fitBudget(slots.filter(Boolean), pool, prefs);
+      const frozen = keepAll ? new Set(out.filter(Boolean).map((x) => x.id)) : null;
+      sl.forEach((slot, i) => {
+        if (out[i]) return;
+        const chosen = out.filter(Boolean);
+        // Dimanche : un plat du dimanche si possible, sinon un dîner ordinaire.
+        const r = (slot.sun && pickBest(pools.sunPool, chosen, [], ctx)) || pickBest(pools.pool, chosen, [], ctx);
+        if (r) out[i] = slot.sun ? { id: r.id, locked: false, sun: true } : { id: r.id, locked: false };
+      });
+      return fitBudget(out.filter(Boolean), pools, prefs, frozen);
     }
 
-    /* Remplace le dîner i par une autre recette. Renvoie le nouveau menu, ou null s'il n'y a pas d'alternative. */
+    /* Remplace le repas i par une autre recette. Renvoie le nouveau menu, ou null s'il n'y a pas d'alternative. */
     function swap(menu, i, ctx) {
-      const pool = poolFor(ctx.prefs, ctx.history);
+      const m = menu[i];
       const others = menu.filter((_, j) => j !== i);
-      const r = pickBest(pool, others, [menu[i].id], ctx);
+      const r = (m.sun && pickBest(sundayPool(ctx.prefs, ctx.history), others, [m.id], ctx))
+        || pickBest(poolFor(ctx.prefs, ctx.history), others, [m.id], ctx);
       if (!r) return null;
       const next = menu.slice();
-      next[i] = { id: r.id, locked: false };
+      next[i] = m.sun ? { id: r.id, locked: false, sun: true } : { id: r.id, locked: false };
+      return next;
+    }
+
+    /* Met une recette choisie à la main sur un repas de la semaine (slotIndex dans slots(prefs)). Elle est gardée. */
+    function place(menu, prefs, slotIndex, id) {
+      const slot = slots(prefs)[slotIndex];
+      if (!slot) return menu;
+      const next = menu.filter((m) => m.id !== id);
+      if (slot.sun) {
+        const at = next.findIndex((m) => m.sun);
+        const item = { id, locked: true, sun: true };
+        if (at >= 0) next[at] = item; else next.push(item);
+        return next;
+      }
+      const item = { id, locked: true };
+      let k = -1;
+      for (let j = 0; j < next.length; j++) {
+        if (!next[j].sun && ++k === slotIndex) { next[j] = item; return next; }
+      }
+      const sunAt = next.findIndex((m) => m.sun);
+      if (sunAt >= 0) next.splice(sunAt, 0, item); else next.push(item);
       return next;
     }
 
     return {
       DIETS, LEVELS, TIMES, DINNER_COUNTS, EQUIPMENT, STORES, DAY_NAMES, BASICS, DEFAULTS,
-      weekStart, isoDate, dayOffset,
+      weekStart, isoDate, slots, lastOffset, menuDays, fmtTime,
       byId, storeOf, levelLabel, priceOf, fmtQty, fmtPack,
-      flagsOf, canCook, ovenToAF, devicesLabel, whyNot, eligible, isVegetarian, pantryUse,
+      flagsOf, canCook, ovenToAF, devicesLabel, whyNot, eligible, whyNotSunday, eligibleSunday, fitsHousehold, isVegetarian, pantryUse,
       portionCost, buyLine, needs, shoppingLines, shoppingTotal, storeTotals, pantryUsed,
-      poolFor, fitBudget, generate, swap,
+      poolFor, sundayPool, generate, swap, place,
     };
   };
 });

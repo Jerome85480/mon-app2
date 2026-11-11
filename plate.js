@@ -28,6 +28,8 @@
     haricots_verts: ["#5E9A3A", "strip"], legumes_wok: ["#7DAA4A", "strip"], crevettes: ["#F29A7A", "chunk"], dinde: ["#E9CC9F", "chunk"],
     merguez: ["#8E3A26", "slice"], sardines: ["#8C95A2", "chunk"], quinoa: ["#E6D6A8", "grains"], olives: ["#2E2A26", "dot"],
     yaourt: ["#FBF8F0", "dot"], pate_feuilletee: ["#E2B66A", "smooth"], ravioli: ["#EED39A", "dot"], pain_burger: ["#D69A4E", "smooth"],
+    boeuf_braiser: ["#6B3426", "chunk"], veau: ["#E8D3B5", "chunk"], poulet_entier: ["#D39A52", "chunk"], roti_porc: ["#E7B9A0", "slice"],
+    moules: ["#2E2B3A", "chunk"], reblochon: ["#F1DFA6", "smooth"], lasagnes: ["#E3B865", "smooth"],
   };
   // Fonds de soupe et de sauce qui ne viennent pas d'un seul ingrédient
   const BASE_TINT = {
@@ -37,6 +39,9 @@
     one_pot: "#C8402E", dinde_croustillante: "#C9D99A", nuggets: "#C9D99A", saumon_four: "#E9E3D2",
     gratin_dauphinois: "#E9C77A", gratin_chou_fleur: "#E9C77A", oeufs_cocotte: "#3E7A35", chou_fleur_curry: "#E2B04A",
     patate_douce_rotie: "#EADBB8", aubergines_roties: "#D9C9A0",
+    boeuf_bourguignon: "#5E2A22", blanquette: "#F1E6CC", pot_au_feu: "#D6B77A", tajine_poulet: "#D9A441", tian: "#C8452E",
+    moules_frites: "#EFDCA8", roti_porc_moutarde: "#E4C090", poulet_roti_dimanche: "#E9C77A", lasagnes: "#C9542F",
+    lasagnes_vege: "#5E8A3C", tourte_poulet: "#E2B66A", feuillete_saumon: "#E2B66A", parmentier_lentilles: "#E8823A",
   };
   const BASE_KINDS = new Set(["strands", "grains", "smooth"]);
 

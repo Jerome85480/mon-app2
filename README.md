@@ -12,10 +12,13 @@ Inspirée du principe des planificateurs de repas, mais c'est une application or
 - Anti-gaspi : priorité aux recettes qui utilisent le placard et finissent les paquets entamés.
 - Changer un dîner en un geste, le garder d'un menu à l'autre, et **annuler** la dernière action.
 - D'une semaine à l'autre, les plats de la semaine précédente ne sont pas reproposés.
+- **Le dimanche, un plat plus élaboré** (réglable) : bœuf bourguignon, blanquette, poulet rôti, pot-au-feu,
+  lasagnes, tartiflette, moules-frites… 15 plats du dimanche, sans la limite de temps des soirs de semaine.
+  Pour tenir le budget, Popote allège d'abord les dîners de semaine et ne simplifie le dimanche qu'en dernier recours.
 
 **Recettes**
-- Catalogue de 64 recettes avec recherche (plat ou ingrédient) et filtres : selon mes réglages, favoris,
-  20 min max, végétariennes, air fryer, moins de 2 € la part.
+- Catalogue de 79 recettes (dont 15 plats du dimanche) avec recherche (plat ou ingrédient) et filtres : selon mes réglages, favoris,
+  du dimanche, 20 min max, végétariennes, air fryer, moins de 2 € la part.
 - Favoris (proposés plus souvent) et « Mettre au menu » le jour de son choix.
 - Fiche recette : quantités ajustables, étapes à cocher, version air fryer, avertissement si la recette sort des réglages.
 
@@ -55,8 +58,9 @@ Se déploie tel quel sur Vercel, Netlify ou GitHub Pages (site statique).
 npm test
 ```
 
-16 tests (Node, sans dépendance) vérifient le moteur : cohérence des données, respect des régimes et de
-l'équipement, calcul des achats (paquets, vrac, pièces), tenue du budget, dîners gardés, historique, semaines.
+20 tests (Node, sans dépendance) vérifient le moteur : cohérence des données, respect des régimes et de
+l'équipement, calcul des achats (paquets, vrac, pièces), tenue du budget, dîners gardés, historique, semaines,
+plat du dimanche (jamais en semaine, régime respecté, changement, placement manuel).
 
 ## Fichiers
 

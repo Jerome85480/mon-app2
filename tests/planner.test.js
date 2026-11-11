@@ -42,6 +42,7 @@ test("données : chaque recette est complète et cohérente", () => {
     }
     const cost = P.portionCost(r, "leclerc");
     assert.ok(cost > 0.3 && cost < 6, `${r.id} : prix par part plausible (${cost.toFixed(2)} €)`);
+    if (r.sunday) assert.ok(r.time >= 45, `${r.id} : un plat du dimanche prend son temps`);
   }
   for (const id of [...PANTRY, ...DISLIKES]) assert.ok(ING[id], `liste placard / aversions : ${id}`);
 });
@@ -125,9 +126,12 @@ test("menu : bon nombre de dîners, pas de doublon, uniquement des recettes qui 
     for (const over of [{}, { diets: ["vege"] }, { dinners: 7, people: 4, budget: 90 }, { equipment: ["plaque", "airfryer"], time: 30 }]) {
       const p = prefs(over);
       const menu = P.generate({ prefs: p, rng: seeded(seed) });
-      assert.equal(menu.length, p.dinners);
+      assert.equal(menu.length, P.slots(p).length);
       assert.equal(new Set(menu.map((m) => m.id)).size, menu.length);
-      for (const m of menu) assert.ok(P.eligible(P.byId(m.id), p), `${m.id} ne convient pas`);
+      for (const m of menu) {
+        const r = P.byId(m.id);
+        assert.ok(m.sun ? P.eligibleSunday(r, p) || P.eligible(r, p) : P.eligible(r, p) && !r.sunday, `${m.id} ne convient pas`);
+      }
     }
   }
 });
@@ -140,7 +144,7 @@ test("menu : même graine, même menu", () => {
 
 test("budget : avec un budget normal le menu tient dedans", () => {
   for (let seed = 1; seed <= 60; seed++) {
-    const p = prefs(); // 2 personnes, 5 dîners, 40 €
+    const p = prefs({ budget: 50 }); // 2 personnes, 5 dîners + le dimanche, 50 €
     const menu = P.generate({ prefs: p, rng: seeded(seed) });
     assert.ok(P.shoppingTotal(menu, p) <= p.budget + 1e-9, `graine ${seed} : ${P.shoppingTotal(menu, p).toFixed(2)} €`);
   }
@@ -151,12 +155,11 @@ test("budget : s'il est intenable, le menu est au moins un optimum local (aucun 
   const menu = P.generate({ prefs: p, rng: seeded(3) });
   const total = P.shoppingTotal(menu, p);
   assert.ok(total > p.budget, "ce budget est volontairement intenable");
-  const pool = P.poolFor(p);
   const used = new Set(menu.map((m) => m.id));
   menu.forEach((m, i) => {
-    for (const r of pool) {
+    for (const r of m.sun ? P.sundayPool(p) : P.poolFor(p)) {
       if (used.has(r.id)) continue;
-      const trial = menu.slice(); trial[i] = { id: r.id };
+      const trial = menu.slice(); trial[i] = { ...m, id: r.id };
       assert.ok(P.shoppingTotal(trial, p) >= total - 0.011);
     }
   });
@@ -165,6 +168,7 @@ test("budget : s'il est intenable, le menu est au moins un optimum local (aucun 
 test("dîners gardés : ils restent au même jour quand on refait le menu", () => {
   const p = prefs();
   const first = P.generate({ prefs: p, rng: seeded(11) });
+  assert.ok(first.length >= 5);
   first[1].locked = true; first[4].locked = true;
   const next = P.generate({ prefs: p, previous: first, rng: seeded(99) });
   assert.deepEqual(next[1], first[1]);
@@ -192,19 +196,84 @@ test("changer un dîner : propose une autre recette et ne touche pas aux autres 
   assert.equal(new Set(next.map((m) => m.id)).size, next.length);
   [0, 1, 3, 4].forEach((i) => assert.deepEqual(next[i], menu[i]));
   // Aucune alternative : une seule recette possible.
-  const narrow = prefs({ dinners: 3, equipment: [], time: 60 });
+  const narrow = prefs({ dinners: 3, equipment: [], time: 60, sunday: false });
   const only = P.generate({ prefs: narrow, rng: seeded(1) });
   assert.equal(only.length, 1);
   assert.equal(P.swap(only, 0, { prefs: narrow, rng: seeded(1) }), null);
 });
 
-test("semaine : du lundi au vendredi on planifie la semaine en cours, le week-end la suivante", () => {
+test("semaine : on passe à la semaine suivante une fois le dernier repas prévu passé", () => {
   const wed = P.weekStart(new Date(2026, 10, 11, 15)); // mercredi 11 novembre 2026
   assert.equal(P.isoDate(wed), "2026-11-09");
-  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 13, 23))), "2026-11-09"); // vendredi soir
-  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 14, 8))), "2026-11-16"); // samedi
-  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 15, 8))), "2026-11-16"); // dimanche
-  assert.deepEqual([0, 1, 2].map((i) => P.dayOffset(3, i)), [0, 2, 4]);
+  // Menu du lundi au vendredi : dès le samedi, on prépare la semaine suivante.
+  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 13, 23), 4)), "2026-11-09"); // vendredi soir
+  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 14, 8), 4)), "2026-11-16"); // samedi
+  // Avec le plat du dimanche, la semaine dure jusqu'au dimanche soir.
+  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 14, 8), 6)), "2026-11-09"); // samedi
+  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 15, 20), 6)), "2026-11-09"); // dimanche soir
+  assert.equal(P.isoDate(P.weekStart(new Date(2026, 10, 16, 8), 6)), "2026-11-16"); // lundi
+  assert.equal(P.lastOffset(prefs({ sunday: false })), 4);
+  assert.equal(P.lastOffset(prefs()), 6);
+});
+
+test("dimanche : un plat élaboré le dimanche, jamais en semaine", () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const p = prefs({ budget: 60 });
+    const menu = P.generate({ prefs: p, rng: seeded(seed) });
+    const days = P.menuDays(menu, p);
+    assert.deepEqual(days, [0, 1, 2, 3, 4, 6]);
+    const sun = menu[menu.length - 1];
+    assert.ok(sun.sun && P.byId(sun.id).sunday, `graine ${seed} : ${sun.id} n'est pas un plat du dimanche`);
+    for (const m of menu.slice(0, -1)) assert.ok(!P.byId(m.id).sunday, `${m.id} un soir de semaine`);
+  }
+  // Le temps maximum ne s'applique pas au dimanche, mais le régime oui.
+  const vege = prefs({ diets: ["vege"], time: 30, budget: 60 });
+  const menu = P.generate({ prefs: vege, rng: seeded(2) });
+  const sun = P.byId(menu.find((m) => m.sun).id);
+  assert.ok(sun.sunday && sun.time > 30 && P.isVegetarian(sun));
+  // Sans le dimanche : seulement les dîners demandés.
+  const off = P.generate({ prefs: prefs({ sunday: false }), rng: seeded(2) });
+  assert.equal(off.length, 5);
+  assert.ok(off.every((m) => !m.sun && !P.byId(m.id).sunday));
+  // Sept dîners + dimanche : le dimanche n'est pas compté deux fois.
+  const seven = prefs({ dinners: 7, budget: 90 });
+  assert.deepEqual(P.menuDays(P.generate({ prefs: seven, rng: seeded(3) }), seven), [0, 1, 2, 3, 4, 5, 6]);
+});
+
+test("dimanche : changer le plat propose un autre plat du dimanche", () => {
+  const p = prefs({ budget: 60 });
+  const menu = P.generate({ prefs: p, rng: seeded(6) });
+  const i = menu.findIndex((m) => m.sun);
+  for (let seed = 1; seed <= 10; seed++) {
+    const next = P.swap(menu, i, { prefs: p, rng: seeded(seed) });
+    assert.ok(next[i].sun && P.byId(next[i].id).sunday && next[i].id !== menu[i].id);
+  }
+});
+
+test("mettre au menu : la recette choisie va au bon jour et reste gardée", () => {
+  const p = prefs({ budget: 60 });
+  const menu = P.generate({ prefs: p, rng: seeded(9) });
+  const a = P.place(menu, p, 2, "lasagnes"); // mercredi
+  assert.equal(a[2].id, "lasagnes"); assert.ok(a[2].locked);
+  assert.equal(a.length, menu.length);
+  const b = P.place(a, p, 5, "carbonara"); // dimanche
+  const sun = b.find((m) => m.sun);
+  assert.equal(sun.id, "carbonara"); assert.ok(sun.locked);
+  assert.equal(P.menuDays(b, p)[b.indexOf(sun)], 6);
+  // Déplacer une recette déjà au menu ne la duplique pas.
+  const c = P.place(b, p, 0, "lasagnes");
+  assert.equal(c.filter((m) => m.id === "lasagnes").length, 1);
+  // Un repas gardé reste au même jour quand on refait le menu.
+  const again = P.generate({ prefs: p, previous: b, rng: seeded(1) });
+  assert.equal(again.find((m) => m.sun).id, "carbonara");
+  assert.equal(again[2].id, "lasagnes");
+});
+
+test("durées : affichage lisible", () => {
+  assert.equal(P.fmtTime(45), "45 min");
+  assert.equal(P.fmtTime(60), "1 h");
+  assert.equal(P.fmtTime(210), "3 h 30");
+  assert.equal(P.fmtTime(75), "1 h 15");
 });
 
 test("quantités : affichage lisible", () => {

@@ -1,7 +1,7 @@
 /* Popote — service worker : l'appli reste utilisable sans réseau (en magasin, par exemple).
    Stratégie « réseau d'abord » : on sert toujours la dernière version quand il y a du réseau,
    et la copie en cache sinon. Aucun risque de rester bloqué sur une vieille version. */
-const CACHE = "popote-v2";
+const CACHE = "popote-v3";
 const ASSETS = ["./", "index.html", "styles.css", "data.js", "planner.js", "plate.js", "app.js", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {

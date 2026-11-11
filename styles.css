@@ -264,6 +264,28 @@ svg { width: 20px; height: 20px; flex: none; }
   padding: 6px 9px 5px; border-radius: 5px; transform: rotate(4deg); box-shadow: var(--shadow);
 }
 
+/* Plat du dimanche : pleine largeur, liseré jaune et ruban */
+.dinner.sunday {
+  grid-column: 1 / -1; padding-top: 30px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(135deg, var(--tag), color-mix(in srgb, var(--tag) 40%, var(--accent))) border-box;
+  border: 2px solid transparent;
+}
+.dinner.sunday .date span { color: var(--ink); }
+.dinner.sunday .dinner-name { font-size: 1.28rem; }
+.sun-ribbon {
+  position: absolute; top: -11px; left: 14px; z-index: 1;
+  background: var(--tag); color: var(--tag-ink); font: 700 .8rem/1 var(--f-tag); letter-spacing: .08em; text-transform: uppercase;
+  padding: 7px 10px 6px; border-radius: 5px; transform: rotate(-2deg); box-shadow: var(--shadow);
+}
+.tonight-tip { font-size: .85rem; color: var(--hero-muted); max-width: 46ch; }
+.tip-box { display: grid; gap: 4px; background: color-mix(in srgb, var(--tag) 22%, var(--surface)); border-radius: 14px; padding: 12px 14px; }
+.tip-box b { font-family: var(--f-display); }
+.tip-box p { font-size: .92rem; }
+.chip-sun { border-color: var(--tag); }
+.rcard-sun { background: color-mix(in srgb, var(--tag) 30%, var(--surface)); color: var(--ink); }
+
 .empty { background: var(--surface); border-radius: var(--r); padding: 28px 20px; text-align: center; display: grid; gap: 12px; justify-items: center; box-shadow: var(--shadow); }
 
 /* ---------- Recettes ---------- */

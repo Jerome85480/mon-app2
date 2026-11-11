@@ -9,7 +9,7 @@
   const { STORES, DIETS, LEVELS, TIMES, DINNER_COUNTS, EQUIPMENT } = P;
 
   const KEY = "popote.v1";
-  const VERSION = "2.0";
+  const VERSION = "2.1";
   const TABS = ["menu", "recettes", "courses", "reglages"];
   const root = document.documentElement;
   const hostTheme = root.getAttribute("data-theme"); // thème imposé par la page qui héberge l'appli, s'il y en a un
@@ -33,6 +33,7 @@
     const prefs = {
       people: Math.round(num(sp.people, d.people, 1, 10)),
       dinners: DINNER_COUNTS.includes(+sp.dinners) ? +sp.dinners : d.dinners,
+      sunday: typeof sp.sunday === "boolean" ? sp.sunday : d.sunday,
       budget: num(sp.budget, d.budget, 20, 160),
       level: LEVELS.some((l) => l.v === +sp.level) ? +sp.level : d.level,
       time: TIMES.includes(+sp.time) ? +sp.time : d.time,
@@ -44,7 +45,7 @@
     };
     return {
       prefs,
-      menu: Array.isArray(s.menu) ? s.menu.filter((m) => m && ids.has(m.id)).map((m) => ({ id: m.id, locked: !!m.locked })) : [],
+      menu: Array.isArray(s.menu) ? s.menu.filter((m) => m && ids.has(m.id)).map((m) => (m.sun ? { id: m.id, locked: !!m.locked, sun: true } : { id: m.id, locked: !!m.locked })) : [],
       checked: s.checked && typeof s.checked === "object" ? s.checked : {},
       extras: Array.isArray(s.extras) ? s.extras.filter((e) => e && typeof e.name === "string" && e.id).map((e) => ({ id: String(e.id), name: e.name.slice(0, 60), done: !!e.done })) : [],
       favorites: Array.isArray(s.favorites) ? s.favorites.filter((id) => ids.has(id)) : [],
@@ -70,6 +71,8 @@
   const store = () => P.storeOf(state.prefs.store);
   const portion = (r) => P.portionCost(r, state.prefs.store);
   const inPantry = (id) => state.prefs.pantry.includes(id);
+  /* Lundi de la semaine planifiée (avec le dimanche, la semaine dure jusqu'au dimanche soir). */
+  const ws = () => P.weekStart(new Date(), P.lastOffset(state.prefs));
   const toggleIn = (arr, v) => { const k = arr.indexOf(v); if (k >= 0) arr.splice(k, 1); else arr.push(v); };
 
   const icons = {
@@ -84,7 +87,7 @@
     out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h9v9M18 6 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
   const meta = (r, withLevel = true) =>
-    `<span>${icons.clock}${r.time} min</span>${withLevel ? `<span>${icons.hat}${P.levelLabel(r.level)}</span>` : ""}<span>${icons.pan}${P.devicesLabel(r, state.prefs)}</span>`;
+    `<span>${icons.clock}${P.fmtTime(r.time)}</span>${withLevel ? `<span>${icons.hat}${P.levelLabel(r.level)}</span>` : ""}<span>${icons.pan}${P.devicesLabel(r, state.prefs)}</span>`;
 
   /* ---------- Menu : opérations ---------- */
   function pruneChecked() {
@@ -98,7 +101,7 @@
   }
   /* Nouvelle semaine : l'ancien menu part dans l'historique (pour ne pas le reproposer) et on repart d'une liste vide. */
   function syncWeek() {
-    const wk = P.isoDate(P.weekStart());
+    const wk = P.isoDate(ws());
     if (state.week === wk) return false;
     if (state.week && state.menu.length) {
       state.history = [state.menu.map((m) => m.id), ...state.history].slice(0, 2);
@@ -122,19 +125,21 @@
     };
   }
 
-  function dayInfo(i) {
-    const off = P.dayOffset(state.prefs.dinners, i);
-    const d = P.weekStart();
+  function dayFromOff(off) {
+    const d = ws();
     d.setDate(d.getDate() + off);
     const name = P.DAY_NAMES[off];
     return { off, name, short: name.slice(0, 3), num: d.getDate(), label: `${name} ${d.getDate()}` };
   }
+  /* Jour du i-ème repas du menu. */
+  const dayInfo = (i) => dayFromOff(P.menuDays(state.menu, state.prefs)[i] ?? i);
+  const mealWord = (m) => (m && m.sun ? "le repas" : "le dîner");
   /* Le dîner de ce soir s'il est prévu, sinon le prochain. */
   function nextDinner() {
     if (!state.menu.length) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const diff = Math.round((today - P.weekStart()) / 864e5);
+    const diff = Math.round((today - ws()) / 864e5);
     for (let i = 0; i < state.menu.length; i++) {
       const off = dayInfo(i).off;
       if (off >= diff) return { i, tonight: off === diff };
@@ -157,7 +162,7 @@
     const badge = $("#tab-badge");
     badge.hidden = left <= 0;
     badge.textContent = left;
-    $("#week-label").textContent = "Sem. du " + P.weekStart().toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    $("#week-label").textContent = "Sem. du " + ws().toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
 
   /* ---------- Écran Menu ---------- */
@@ -166,8 +171,11 @@
   function renderMenu(fresh = []) {
     const p = state.prefs;
     const n = state.menu.length;
-    $("#menu-sub").textContent = `${plural(n, "dîner")} · ${plural(p.people, "personne")} · ${p.time === 60 ? "1 h" : p.time + " min"} max`
-      + (n && n < p.dinners ? ` · seulement ${n} sur ${p.dinners} : pas assez de recettes pour tes réglages` : "");
+    const wanted = P.slots(p).length;
+    const weekN = state.menu.filter((m) => !m.sun).length;
+    const hasSun = state.menu.some((m) => m.sun);
+    $("#menu-sub").textContent = `${plural(weekN, "dîner")}${hasSun ? " + le dimanche" : ""} · ${plural(p.people, "personne")} · ${p.time === 60 ? "1 h" : p.time + " min"} max en semaine`
+      + (n && n < wanted ? ` · seulement ${n} repas sur ${wanted} : pas assez de recettes pour tes réglages` : "");
 
     $("#dinners").innerHTML = !n
       ? `<li class="empty"><h2>Aucune recette ne correspond</h2><p class="muted">Tes réglages sont trop stricts. Ajoute un équipement, allonge le temps en cuisine ou retire un « je n'aime pas ».</p><button class="btn" type="button" data-act="nav" data-v="reglages">Ouvrir les réglages</button></li>`
@@ -175,7 +183,8 @@
         const r = P.byId(m.id);
         const d = dayInfo(i);
         const use = P.pantryUse(r, p).map((id) => ING[id].name.toLowerCase().replace(/\s*\(.*\)/, ""));
-        return `<li class="dinner${m.locked ? " locked" : ""}${fresh.includes(i) ? " fresh" : ""}">
+        return `<li class="dinner${m.sun ? " sunday" : ""}${m.locked ? " locked" : ""}${fresh.includes(i) ? " fresh" : ""}">
+          ${m.sun ? `<span class="sun-ribbon">Plat du dimanche${r.sunday ? ` · ${P.fmtTime(r.time)}` : ""}</span>` : ""}
           ${m.locked ? '<span class="sticker">Gardé</span>' : ""}
           <div class="date" aria-hidden="true"><span>${d.short}</span><b>${d.num}</b></div>
           <div class="dinner-main">
@@ -187,8 +196,8 @@
           <div class="dinner-foot">
             <span class="tag">${fmtE(portion(r))} <small>la part</small></span>
             <div class="dinner-btns">
-              <button class="icon-btn" type="button" data-act="swap" data-v="${i}" aria-label="Changer le dîner de ${d.name.toLowerCase()}" title="Changer ce dîner">${icons.swap}</button>
-              <button class="icon-btn" type="button" data-act="lock" data-v="${i}" aria-pressed="${m.locked}" aria-label="Garder le dîner de ${d.name.toLowerCase()}" title="${m.locked ? "Gardé pour le prochain menu" : "Garder ce dîner"}">${m.locked ? icons.lock : icons.unlock}</button>
+              <button class="icon-btn" type="button" data-act="swap" data-v="${i}" aria-label="Changer ${mealWord(m)} de ${d.name.toLowerCase()}" title="Changer">${icons.swap}</button>
+              <button class="icon-btn" type="button" data-act="lock" data-v="${i}" aria-pressed="${m.locked}" aria-label="Garder ${mealWord(m)} de ${d.name.toLowerCase()}" title="${m.locked ? "Gardé pour le prochain menu" : "Garder"}">${m.locked ? icons.lock : icons.unlock}</button>
             </div>
           </div>
         </li>`;
@@ -208,13 +217,14 @@
     tonightShown = r.id;
     box.innerHTML = `
       <div class="tonight-text">
-        <p class="eyebrow">${nd.tonight ? "Ce soir" : "Prochain dîner"} · ${dayInfo(nd.i).label}</p>
+        <p class="eyebrow">${state.menu[nd.i].sun ? (nd.tonight ? "Aujourd'hui · plat du dimanche" : `Plat du dimanche · ${dayInfo(nd.i).label}`) : `${nd.tonight ? "Ce soir" : "Prochain dîner"} · ${dayInfo(nd.i).label}`}</p>
         <h2>${esc(r.name)}</h2>
         <div class="meta">${meta(r, false)}<span>${fmtE(portion(r) * p.people)} pour ${p.people}</span></div>
         <div class="tonight-actions">
           <button class="btn btn-yellow" type="button" data-act="open" data-v="${nd.i}">Voir la recette</button>
           <button class="btn btn-outline-light" type="button" data-act="swap" data-v="${nd.i}">${icons.swap}Changer</button>
         </div>
+        ${state.menu[nd.i].sun && r.time >= 90 ? `<p class="tonight-tip">Prévois ${P.fmtTime(r.time)} : lance-le en début d'après-midi pour un dîner, ou le matin pour le déjeuner.</p>` : ""}
       </div>
       <div class="tonight-plate" aria-hidden="true">${window.plateSVG(r, true)}</div>`;
   }
@@ -227,7 +237,7 @@
     const over = total > p.budget + 0.005;
     $("#receipt-store").textContent = store().name;
     $("#receipt-lines").innerHTML = `
-      <div class="row"><dt>${plural(n, "dîner")} × ${p.people} pers.</dt><dd>${plural(n * p.people, "assiette")}</dd></div>
+      <div class="row"><dt>${n} repas × ${p.people} pers.</dt><dd>${plural(n * p.people, "assiette")}</dd></div>
       <div class="row"><dt>Courses estimées</dt><dd>${fmtE(total)}</dd></div>
       <div class="row"><dt>Budget</dt><dd>${fmtE(p.budget)}</dd></div>
       <div class="row total${over ? " over" : ""}"><dt>${over ? "Dépassement" : "Reste"}</dt><dd>${fmtE(Math.abs(p.budget - total))}</dd></div>`;
@@ -247,7 +257,8 @@
   const catalog = { q: "", filter: "all" };
   const FILTERS = [
     { id: "all", label: "Toutes", test: () => true },
-    { id: "mine", label: "Selon mes réglages", test: (r) => P.eligible(r, state.prefs) },
+    { id: "mine", label: "Selon mes réglages", test: (r) => (r.sunday ? state.prefs.sunday && P.eligibleSunday(r, state.prefs) : P.eligible(r, state.prefs)) },
+    { id: "sunday", label: "Du dimanche", test: (r) => !!r.sunday },
     { id: "fav", label: "Favoris", test: (r) => state.favorites.includes(r.id) },
     { id: "quick", label: "20 min max", test: (r) => r.time <= 20 },
     { id: "vege", label: "Végétariennes", test: (r) => P.isVegetarian(r) },
@@ -281,7 +292,8 @@
         <button type="button" class="rcard-main" data-act="open-recipe" data-v="${r.id}">
           <span class="rcard-plate">${window.plateSVG(r)}</span>
           <span class="rcard-name">${esc(r.name)}</span>
-          <span class="rcard-meta">${r.time} min · ${fmtE(portion(r))}</span>
+          <span class="rcard-meta">${P.fmtTime(r.time)} · ${fmtE(portion(r))}</span>
+          ${r.sunday && idx < 0 ? '<span class="rcard-badge rcard-sun">Du dimanche</span>' : ""}
           ${idx >= 0 ? `<span class="rcard-badge">Au menu · ${dayInfo(idx).short.toLowerCase()}.</span>` : ""}
         </button>
         <button type="button" class="heart" data-act="fav" data-v="${r.id}" aria-pressed="${fav}" aria-label="${fav ? "Retirer" : "Ajouter"} ${esc(r.name)} ${fav ? "des" : "aux"} favoris">${icons.heart}</button>
@@ -395,7 +407,7 @@
   function listText() {
     const { lines } = listCounts();
     const sum = lines.reduce((s, l) => s + l.cost, 0);
-    const head = `Courses ${store().name}, semaine du ${P.weekStart().toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} (environ ${fmtE(sum)})`;
+    const head = `Courses ${store().name}, semaine du ${ws().toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} (environ ${fmtE(sum)})`;
     const body = AISLES.map((a) => {
       const items = lines.filter((l) => ING[l.id].aisle === a.id);
       if (!items.length) return "";
@@ -419,7 +431,8 @@
       `<button type="button" class="chip" data-act="${act}" data-v="${v}" aria-pressed="${isOn(v)}">${esc(label)}</button>`).join("")}</div></fieldset>`;
   const plateHint = () => {
     const p = state.prefs;
-    return `Soit ${fmtE(p.budget / (p.dinners * p.people))} par assiette pour ${plural(p.dinners, "dîner")} à ${p.people}.`;
+    const meals = P.slots(p).length;
+    return `Soit ${fmtE(p.budget / (meals * p.people))} par assiette pour ${meals} repas à ${p.people}.`;
   };
 
   const C = {
@@ -430,6 +443,8 @@
         <button type="button" class="step" data-act="people" data-v="1" aria-label="Une personne de plus">+</button>
       </div></fieldset>`,
     dinners: () => seg("Combien de dîners par semaine ?", 'data-act="set" data-k="dinners"', DINNER_COUNTS.map((n) => [n, n]), state.prefs.dinners),
+    sunday: () => seg("Le dimanche", 'data-act="sunday"', [[1, "Un plat plus élaboré"], [0, "Comme en semaine"]], state.prefs.sunday ? 1 : 0)
+      .replace("</legend>", '</legend><p class="field-hint muted">Bourguignon, poulet rôti, lasagnes… Un plat plus long à préparer, sans la limite de temps des soirs de semaine. Il s\'ajoute aux dîners de la semaine.</p>'),
     store: () => seg("Où fais-tu tes courses ?", 'data-act="store"', STORES.map((s) => [s.id, s.name]), state.prefs.store),
     budget: (scope) => `<div class="field"><label class="legend" for="${scope}-budget">Budget courses par semaine</label>
       <div class="range-row"><input type="range" id="${scope}-budget" data-range="budget" min="20" max="160" step="5" value="${state.prefs.budget}"><output class="tag tag-mid" for="${scope}-budget">${euroRound.format(state.prefs.budget)}</output></div>
@@ -459,7 +474,7 @@
              <button type="button" class="btn btn-ghost btn-small" data-act="reset-ask">Remettre à zéro</button>`}
       </div>`;
     $("#prefs").innerHTML =
-      group("Le foyer", C.people() + C.dinners()) +
+      group("Le foyer", C.people() + C.dinners() + C.sunday()) +
       group("Les courses", C.store() + C.budget("set")) +
       group("En cuisine", C.equipment() + C.level() + C.time()) +
       group("Ce que je mange", C.diets() + C.dislikes()) +
@@ -488,7 +503,7 @@
   /* ---------- Accueil guidé ---------- */
   let obStep = null;
   const OB = [
-    { title: "Pour combien de personnes ?", body: () => C.people() + C.dinners() },
+    { title: "Pour combien de personnes ?", body: () => C.people() + C.dinners() + C.sunday() },
     { title: "Tes courses", lead: "Popote compose un menu qui tient dans ton budget et calcule les prix pour ton enseigne.", body: () => C.store() + C.budget("ob") },
     { title: "Ce que tu manges", lead: "Les recettes qui ne te conviennent pas ne seront jamais proposées.", body: () => C.diets() + C.dislikes() },
     { title: "Ta cuisine", lead: "Pour ne te proposer que ce que tu peux vraiment cuisiner un soir de semaine.", body: () => C.equipment() + C.level() + C.time() },
@@ -564,7 +579,7 @@
     const { people, done } = sheetCtx;
     const idx = state.menu.findIndex((m) => m.id === r.id);
     const fav = state.favorites.includes(r.id);
-    const why = P.whyNot(r, p);
+    const why = r.sunday ? P.whyNotSunday(r, p) : P.whyNot(r, p);
     const toAF = P.ovenToAF(r, p);
 
     let afBox = "";
@@ -576,19 +591,21 @@
 
     const plan = idx >= 0
       ? `<section class="sheet-section plan">
-          <h3>Au menu ${dayInfo(idx).name.toLowerCase()}</h3>
+          <h3>Au menu ${dayInfo(idx).name.toLowerCase()}${state.menu[idx].sun ? " (plat du dimanche)" : ""}</h3>
           <div class="row-btns">
-            <button type="button" class="btn btn-ghost btn-small" data-act="swap" data-v="${idx}">${icons.swap}Changer ce dîner</button>
+            <button type="button" class="btn btn-ghost btn-small" data-act="swap" data-v="${idx}">${icons.swap}Changer ce plat</button>
             <button type="button" class="btn btn-ghost btn-small" data-act="lock" data-v="${idx}" aria-pressed="${state.menu[idx].locked}">${state.menu[idx].locked ? icons.lock + "Gardé" : icons.unlock + "Garder"}</button>
           </div>
         </section>`
       : `<section class="sheet-section plan">
           <h3>Mettre au menu</h3>
-          <p class="muted small">Choisis le jour. Ce plat remplace le dîner prévu et reste gardé.</p>
-          <div class="chips">${Array.from({ length: p.dinners }, (_, i) => {
-            const d = dayInfo(i);
-            const cur = state.menu[i] && P.byId(state.menu[i].id);
-            return `<button type="button" class="chip" data-act="put" data-v="${i}" aria-label="${d.label}${cur ? `, à la place de ${esc(cur.name)}` : ""}">${d.short} ${d.num}</button>`;
+          <p class="muted small">Choisis le jour. Ce plat remplace celui qui est prévu et reste gardé.${r.sunday && !p.sunday ? " Tu peux aussi activer le plat du dimanche dans les réglages." : ""}</p>
+          <div class="chips">${P.slots(p).map((slot, k) => {
+            const d = dayFromOff(slot.off);
+            const days = P.menuDays(state.menu, p);
+            const cur = state.menu[days.indexOf(slot.off)];
+            const curName = cur && P.byId(cur.id).name;
+            return `<button type="button" class="chip${slot.sun ? " chip-sun" : ""}" data-act="put" data-v="${k}" aria-label="${d.label}${curName ? `, à la place de ${esc(curName)}` : ""}">${d.short} ${d.num}</button>`;
           }).join("")}</div>
         </section>`;
 
@@ -626,6 +643,7 @@
             return `<li><button type="button" class="step-btn${swapped ? " swapped" : ""}" data-act="step-done" data-v="${k}" aria-pressed="${done.has(k)}"><span>${esc(s)}${swapped ? '<em class="swap-note">Au air fryer : voir l\'encadré ci-dessus.</em>' : ""}</span></button></li>`;
           }).join("")}</ol>
           <p class="sheet-note">Touche une étape pour la cocher au fur et à mesure.</p>
+          ${r.tip ? `<div class="tip-box"><b>Le conseil</b><p>${esc(r.tip)}</p></div>` : ""}
         </section>
         ${plan}
       </div>`;
@@ -738,15 +756,19 @@
     put: (v) => {
       const id = sheetCtx && sheetCtx.id;
       if (!id || state.menu.some((m) => m.id === id)) return;
+      const slot = P.slots(state.prefs)[+v];
+      if (!slot) return;
       const undo = snapshot();
-      const menu = state.menu.slice();
-      const i = Math.min(+v, menu.length);
-      menu[i] = { id, locked: true };
-      state.menu = menu;
+      state.menu = P.place(state.menu, state.prefs, +v, id);
+      // S'il manquait des repas (pas assez de recettes), on complète sans toucher au reste.
+      if (state.menu.length < P.slots(state.prefs).length) state.menu = P.generate(ctx({ previous: state.menu, keepAll: true }));
       pruneChecked();
       save();
+      const i = P.menuDays(state.menu, state.prefs).indexOf(slot.off);
       refresh([i]);
-      toast(`${P.byId(id).name} est au menu de ${dayInfo(i).name.toLowerCase()}.`, undo);
+      const outside = !P.fitsHousehold(P.byId(id), state.prefs);
+      toast(`${P.byId(id).name} est au menu de ${dayFromOff(slot.off).name.toLowerCase()}.`
+        + (outside ? " Ce plat sort de ton régime : il sera remplacé si tu refais le menu." : ""), undo);
     },
     filter: (v, el) => {
       catalog.filter = v;
@@ -806,6 +828,12 @@
       prefsChanged();
     },
     equip: (v) => { toggleIn(state.prefs.equipment, v); prefsChanged(); },
+    sunday: (v) => {
+      state.prefs.sunday = v === "1";
+      state.week = P.isoDate(ws()); // la fin de semaine change (vendredi ou dimanche) : on reste sur la même semaine
+      prefsChanged();
+      if (obStep === null) toast(state.prefs.sunday ? "Un plat du dimanche a été ajouté au menu." : "Plus de plat du dimanche : le menu ne compte que les dîners de la semaine.");
+    },
     pantry: (v) => { toggleIn(state.prefs.pantry, v); prefsChanged(); },
     dislike: (v) => { toggleIn(state.prefs.dislikes, v); prefsChanged(); },
     theme: (v) => { state.theme = v; applyTheme(); save(); renderSettings(); },
@@ -926,7 +954,13 @@
   /* ---------- Démarrage ---------- */
   applyTheme();
   syncWeek();
-  if (!state.menu.length) regenerate(false); else { pruneChecked(); save(); }
+  if (!state.menu.length) regenerate(false);
+  else if (state.menu.length < P.slots(state.prefs).length) {
+    // Menu enregistré par une version précédente (sans le dimanche) : on complète sans rien changer d'autre.
+    state.menu = P.generate(ctx({ previous: state.menu, keepAll: true }));
+    pruneChecked();
+    save();
+  } else { pruneChecked(); save(); }
   renderChrome();
   show(location.hash.slice(1) || "menu");
   if (!state.onboarded) startOnboarding();
